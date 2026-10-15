@@ -5,6 +5,14 @@
 
 Personal engineering hub, architecture deep dives, and operational runbooks built with [Hugo](https://gohugo.io/) and the [Hextra](https://github.com/imfing/hextra) theme, published at [sagalo.pro](https://sagalo.pro/).
 
+## Banner
+
+A clean visual background banner (1584x396) without baked-in text, featuring high-contrast dark tones, ambient glows, and geometric concentric rings. On `sagalo.pro`, text is layered via HTML/CSS; the clean image below is ready for direct use on social profiles or custom overlays:
+
+- **Download**: [Clean PNG](static/images/banner.png) | [Clean Vector SVG](static/images/banner.svg)
+
+![Background Banner](static/images/banner.png)
+
 ## Development
 
 Prerequisites:
