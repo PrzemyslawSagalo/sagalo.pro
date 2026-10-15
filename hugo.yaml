@@ -1,5 +1,5 @@
 baseURL: "https://sagalo.pro/"
-title: "Przemysław Sagało — Engineering & Architecture"
+title: "Przemysław Sagało"
 defaultContentLanguage: "en"
 enableGitInfo: true
 
@@ -19,7 +19,7 @@ menu:
     - name: Deep Dives
       pageRef: /deep-dives
       weight: 1
-    - name: Runbooks & Cheat Sheets
+    - name: Runbooks
       pageRef: /runbooks
       weight: 2
     - name: Search
@@ -33,6 +33,7 @@ menu:
         icon: github
 
 params:
+  description: "Systems. Architecture. Execution. Engineering deep dives and operational runbooks by Przemysław Sagało."
   navbar:
     displayLogo: false
     displayTitle: true
