@@ -39,7 +39,7 @@ params:
     displayTitle: true
   theme:
     default: dark
-    displayToggle: true
+    displayToggle: false
   search:
     enable: true
     type: flexsearch
