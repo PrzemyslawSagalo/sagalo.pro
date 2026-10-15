@@ -1,0 +1,50 @@
+baseURL: "https://sagalo.pro/"
+title: "Przemysław Sagało — Engineering & Architecture"
+defaultContentLanguage: "en"
+enableGitInfo: true
+
+module:
+  imports:
+    - path: github.com/imfing/hextra
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+  highlight:
+    noClasses: false
+
+menu:
+  main:
+    - name: Deep Dives
+      pageRef: /deep-dives
+      weight: 1
+    - name: Runbooks & Cheat Sheets
+      pageRef: /runbooks
+      weight: 2
+    - name: Search
+      weight: 3
+      params:
+        type: search
+    - name: GitHub
+      url: https://github.com/przemyslawsagalo
+      weight: 4
+      params:
+        icon: github
+
+params:
+  navbar:
+    displayLogo: false
+    displayTitle: true
+  theme:
+    default: dark
+    displayToggle: true
+  search:
+    enable: true
+    type: flexsearch
+  highlight:
+    copy:
+      display: hover
+  footer:
+    displayCopyright: true
+    displayPoweredBy: true
