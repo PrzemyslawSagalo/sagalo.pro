@@ -2,3 +2,11 @@
 public/
 resources/_gen/
 .hugo_build.lock
+
+# Maister orchestration artifacts
+.maister/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
