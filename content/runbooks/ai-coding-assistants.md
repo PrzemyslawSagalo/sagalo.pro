@@ -14,7 +14,7 @@ This document outlines the architectural differences and execution models of AI 
 
 ## 2. Skills (Function Calling)
 * **Definition:** Passive interfaces (Tools) that expose environmental I/O to the LLM.
-* **Behavior:** Operates on a contract basis (typically JSON Schema). The LLM does not execute code directly; instead, it outputs a structured JSON request to invoke a specific tool. 
+* **Behavior:** Operates on a contract basis (typically JSON Schema). The LLM does not execute code directly; instead, it outputs a structured JSON request to invoke a specific tool.
 * **Execution:** The client-side orchestrator intercepts the JSON, executes the corresponding local system function (e.g., reading a file, querying AWS S3 via `boto3`), and feeds the result back into the LLM context window.
 
 ---
