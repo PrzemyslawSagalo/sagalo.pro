@@ -95,8 +95,14 @@ Create a new commit that reverses changes from a previous commit:
 git revert <commit-hash>
 ```
 
+When reverting a merge commit, specify the mainline parent flag (typically `-m 1`) to effectively reverse the changes introduced by the merge commit:
+
+```bash
+git revert -m 1 <merge-commit-hash>
+```
+
 ### Deleting Tags
-Remove local and remote tags:
+Remove local and remote tags (see reference guide on [how to delete local and remote tags on git](https://devconnected.com/how-to-delete-local-and-remote-tags-on-git/)):
 
 ```bash
 # Delete local tag
@@ -105,3 +111,22 @@ git tag -d <tag-name>
 # Delete remote tag
 git push origin --delete <tag-name>
 ```
+
+---
+
+## End-of-Day Work-in-Progress (WIP) Commits
+
+If your changes are not ready to be submitted at the end of your work day, make a dirty branch, commit all of your changes to it, and push it to a remote repository so work is never lost:
+
+```bash
+# Create and switch to a temporary WIP branch
+git checkout -b feature/<branch-name>-wip
+
+# Commit all changes to the dirty branch
+git commit -am "WIP"
+
+# Push dirty branch to remote
+git push -u origin feature/<branch-name>-wip
+```
+
+When resuming work, continue on the branch and rebase or squash the WIP commits into clean, atomic commits before opening a Pull Request.
