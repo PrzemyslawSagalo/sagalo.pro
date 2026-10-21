@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { register } from 'node:module';
 
 // Intercept @astrojs/starlight import to avoid Node 23 ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING
@@ -21,7 +22,7 @@ export async function resolve(specifier, context, nextResolve) {
 `;
 register('data:text/javascript,' + encodeURIComponent(loaderCode), import.meta.url);
 
-const projectRoot = process.cwd();
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 test('package.json contains required scripts and dependencies', () => {
   const pkgPath = path.join(projectRoot, 'package.json');
@@ -52,7 +53,7 @@ test('package.json contains required scripts and dependencies', () => {
 test('astro.config.mjs exports output: static, trailingSlash: always, site URL, and Starlight integration', async () => {
   const configPath = path.join(projectRoot, 'astro.config.mjs');
   assert.ok(fs.existsSync(configPath), 'astro.config.mjs must exist');
-  
+
   const content = fs.readFileSync(configPath, 'utf8');
   assert.match(content, /site:\s*['"]https:\/\/sagalo\.pro['"]/);
   assert.match(content, /output:\s*['"]static['"]/);
