@@ -1,0 +1,22 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://sagalo.pro/sitemap-index.xml
+
+# LLM & AI Agent Directives
+# Specification: https://llmstxt.org
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+# Canonical LLM endpoints
+# Index: https://sagalo.pro/llms.txt
+# Full Corpus: https://sagalo.pro/llms-full.txt

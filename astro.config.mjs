@@ -16,6 +16,10 @@ export default defineConfig({
           lang: 'en',
         },
       },
+      lastUpdated: true,
+      editLink: {
+        baseUrl: 'https://github.com/przemyslawsagalo/sagalo.pro/edit/main/',
+      },
       social: [
         {
           icon: 'github',

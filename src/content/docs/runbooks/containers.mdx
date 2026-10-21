@@ -1,0 +1,125 @@
+---
+title: Containers & OpenShift (Docker & oc)
+description: "Practical runbook for Docker & Podman container management, resource inspection, and OpenShift image registry workflows."
+sidebar:
+  order: 4
+tags:
+  - containers
+  - docker
+  - podman
+  - openshift
+  - devops
+---
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+Practical runbook for daily Docker and Podman container management, resource inspection, incident recovery, and OpenShift image registry operations.
+
+:::caution[Rootless Container Execution]
+In security-hardened environments, avoid executing daemon commands as root. Use rootless namespaces or Podman user sockets to prevent permission mapping vulnerabilities and host compromise.
+:::
+
+## Container Runtime Inspection & Management
+
+### Runtime CLI Syntax Comparison
+
+<Tabs>
+  <TabItem label="Docker">
+    ```bash
+    # Inspect system disk usage across images, containers, and build cache
+    docker system df
+    docker system df -v
+
+    # Live resource utilization (CPU, memory, network I/O)
+    docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"
+
+    # Container process table
+    docker top <container_id_or_name>
+
+    # Host & container bidirectional file transfer
+    docker cp ./config.json <container_id>:/app/config.json
+    docker cp <container_id>:/var/log/app.log ./app.log
+    ```
+  </TabItem>
+  <TabItem label="Podman">
+    ```bash
+    # Inspect system disk usage across images, containers, and build cache
+    podman system df
+    podman system df -v
+
+    # Live resource utilization (rootless socket compatible)
+    podman stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"
+
+    # Container process table
+    podman top <container_id_or_name>
+
+    # Host & container bidirectional file transfer
+    podman cp ./config.json <container_id>:/app/config.json
+    podman cp <container_id>:/var/log/app.log ./app.log
+    ```
+  </TabItem>
+</Tabs>
+
+---
+
+## Incident Recovery & Lifecycle Procedure
+
+<Steps>
+1. **Isolate Host Resources**:
+   Check root partition disk space (`df -h`) and inspect dangling overlay2 volumes or orphaned layer mounts consuming storage and inodes.
+2. **Safely Prune Buildkit Cache**:
+   Execute safe build prune keeping active image layers intact:
+   ```bash
+   docker builder prune -a --filter "until=24h"
+   ```
+3. **Verify Daemon Socket Health**:
+   Check systemd service status and daemon responsiveness before resuming production workloads:
+   ```bash
+   sudo systemctl status docker
+   ```
+</Steps>
+
+---
+
+## OpenShift CLI (`oc`) Registry Workflows
+
+When working with private OpenShift container registries, configure the local Docker daemon and authenticate using short-lived tokens.
+
+### 1. Cluster Authentication
+Log into the target OpenShift cluster via CLI:
+
+```bash
+oc login --server=<cluster-api-url> --token=<auth-token>
+```
+
+### 2. Insecure Registry Configuration
+If the OpenShift internal image registry route uses self-signed or internal enterprise certificates, register the domain in Docker daemon's configuration:
+
+Edit `/etc/docker/daemon.json` (requires root privileges):
+```json
+{
+  "insecure-registries": [
+    "default-route-openshift-image-registry.<cluster-domain>.com"
+  ]
+}
+```
+
+Reload and restart Docker:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+```
+
+### 3. Registry Authentication via CLI Token
+Authenticate Docker directly against the OpenShift image registry using your active `oc` session token:
+
+```bash
+docker login -u openshift -p $(oc whoami -t) default-route-openshift-image-registry.<cluster-domain>.com
+```
+
+---
+
+## Reference Guides & Cheat Sheets
+
+> [!TIP]
+> **Offline Reference**: A comprehensive [Docker CLI Cheat Sheet (PDF)](/docs/docker.pdf) is available for offline download.

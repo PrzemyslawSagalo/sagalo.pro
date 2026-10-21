@@ -1,0 +1,60 @@
+---
+title: Runbooks & Cheat Sheets
+description: "Battle-tested operational runbooks, developer tooling guides, workflow checklists, and quick CLI references."
+sidebar:
+  order: 2
+tags:
+  - runbooks
+  - operations
+  - devops
+  - cheat-sheets
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Battle-tested operational runbooks, developer tooling guides, workflow checklists, and quick CLI references.
+
+## Operational Runbooks Catalog
+
+<CardGrid>
+  <LinkCard
+    title="Git Workflows"
+    href="/runbooks/git/"
+    description="Multi-branch sync, detached HEAD recovery, worktrees, and commit history audits."
+  />
+  <LinkCard
+    title="Git Cheat Sheet"
+    href="/runbooks/git/cheat-sheet/"
+    description="Safe revert workflows, conflict resolution, and untracked file cleanup."
+  />
+  <LinkCard
+    title="Containers & OpenShift"
+    href="/runbooks/containers/"
+    description="Resource troubleshooting, socket permissions, OpenShift image registries, and rootless setups."
+  />
+  <LinkCard
+    title="Linux & Shell"
+    href="/runbooks/linux/"
+    description="Systemd service debugging, inode leaks, process signals, and core utility chains."
+  />
+  <LinkCard
+    title="SQL Execution & Indexing"
+    href="/runbooks/sql/"
+    description="Query plans, partial index optimization, lock inspection, and migration safeguards."
+  />
+  <LinkCard
+    title="AI Coding Assistants"
+    href="/runbooks/ai-coding-assistants/"
+    description="Taxonomy and execution boundaries: Commands, Skills, Agents, and Model Context Protocol (MCP)."
+  />
+  <LinkCard
+    title="Daily Toolkit & Vault"
+    href="/runbooks/daily-toolkit/"
+    description="Personal developer tooling, bookmark vaults, dotfile patterns, and productivity ecosystem."
+  />
+  <LinkCard
+    title="Vim & Neovim"
+    href="/runbooks/vim/"
+    description="Motions, substitutions, sorting flags, and buffer management."
+  />
+</CardGrid>

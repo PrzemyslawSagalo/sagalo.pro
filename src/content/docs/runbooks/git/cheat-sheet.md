@@ -1,7 +1,12 @@
 ---
 title: Git Cheat Sheet (Reverting & Undoing)
+description: "Emergency Git recovery commands, safe undo workflows, conflict resolution, and workspace cleanup."
 sidebar:
   order: 1
+tags:
+  - git
+  - cheat-sheet
+  - recovery
 ---
 
 Practical strategies for safely undoing commits, restoring files, and cleaning untracked workspace changes.

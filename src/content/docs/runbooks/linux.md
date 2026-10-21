@@ -1,7 +1,13 @@
 ---
 title: Linux & Shell Operations
+description: "Linux sysadmin diagnostics, process monitoring, disk space management, and networking cheat sheet."
 sidebar:
   order: 5
+tags:
+  - linux
+  - sysadmin
+  - networking
+  - cli
 ---
 
 Essential operational runbook for Linux shell workflows, terminal multiplexing, cryptographic operations, networking diagnostics, and API testing.

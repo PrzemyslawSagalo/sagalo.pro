@@ -1,7 +1,14 @@
 ---
 title: Environments & Package Tooling
+description: "Python virtual environments, dependency isolation, and modern package management using uv, poetry, and pip."
 sidebar:
   order: 4
+tags:
+  - python
+  - packaging
+  - virtualenv
+  - uv
+  - poetry
 ---
 
 Practical reference for deterministic Python environment isolation, dependency managers (`pyenv`, `poetry`, `pip`, `conda`), and runtime configuration.
