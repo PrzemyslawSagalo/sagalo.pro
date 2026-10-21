@@ -1,7 +1,14 @@
 ---
 title: AI Coding Assistants (Commands, Skills, Agents & MCP)
+description: "Operational guidelines for AI coding assistants: prompt engineering, agent skills, subagents, and Model Context Protocol (MCP)."
 sidebar:
   order: 1
+tags:
+  - ai
+  - llm
+  - claude-code
+  - cursor
+  - mcp
 ---
 
 This document outlines the architectural differences and execution models of AI coding assistants, categorized by their level of autonomy, system interaction, and integration standards.

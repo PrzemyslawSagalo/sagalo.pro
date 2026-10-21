@@ -1,7 +1,14 @@
 ---
 title: Python Testing Principles & Pytest Standards
+description: "Test-driven engineering with pytest: test doubles, fixtures, mocking patterns, and parameterization."
 sidebar:
   order: 3
+tags:
+  - python
+  - pytest
+  - testing
+  - tdd
+  - mocking
 ---
 
 ## General Testing Principles

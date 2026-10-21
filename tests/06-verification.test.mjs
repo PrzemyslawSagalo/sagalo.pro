@@ -170,3 +170,98 @@ test('Test 8: Linting & hygiene — verify pre-commit lint passes', () => {
     'pre-commit run --all-files must pass without errors'
   );
 });
+
+test('Test 9: Built Knowledge Hub & LLM endpoints validation — verify dist/llms.txt, dist/llms-full.txt, and dist/robots.txt', () => {
+  // 1. dist/llms.txt validation
+  const llmsTxtPath = path.join(distDir, 'llms.txt');
+  assert.ok(fs.existsSync(llmsTxtPath), 'dist/llms.txt must exist');
+
+  const llmsStat = fs.statSync(llmsTxtPath);
+  assert.ok(llmsStat.isFile(), 'dist/llms.txt must be a file');
+  assert.ok(llmsStat.size > 0, `dist/llms.txt must have non-zero size (got ${llmsStat.size} bytes)`);
+
+  const llmsContent = fs.readFileSync(llmsTxtPath, 'utf8');
+  assert.match(
+    llmsContent,
+    /^# Przemysław Sagało — Knowledge Hub/m,
+    'dist/llms.txt must start with # Przemysław Sagało — Knowledge Hub'
+  );
+  assert.match(
+    llmsContent,
+    /> Principal systems architect, engineering lead, and full-stack technologist\./,
+    'dist/llms.txt must contain summary blockquote'
+  );
+  assert.match(
+    llmsContent,
+    /## Architecture & Deep Dives/,
+    'dist/llms.txt must contain ## Architecture & Deep Dives'
+  );
+  assert.match(
+    llmsContent,
+    /## Operational Runbooks/,
+    'dist/llms.txt must contain ## Operational Runbooks'
+  );
+  assert.match(
+    llmsContent,
+    /\/llms-full\.txt/,
+    'dist/llms.txt must contain link to /llms-full.txt'
+  );
+
+  // 2. dist/llms-full.txt validation
+  const llmsFullTxtPath = path.join(distDir, 'llms-full.txt');
+  assert.ok(fs.existsSync(llmsFullTxtPath), 'dist/llms-full.txt must exist');
+
+  const llmsFullStat = fs.statSync(llmsFullTxtPath);
+  assert.ok(llmsFullStat.isFile(), 'dist/llms-full.txt must be a file');
+  assert.ok(
+    llmsFullStat.size > 5000,
+    `dist/llms-full.txt must have non-trivial size (>5000 bytes, got ${llmsFullStat.size} bytes)`
+  );
+
+  const llmsFullContent = fs.readFileSync(llmsFullTxtPath, 'utf8');
+  assert.match(
+    llmsFullContent,
+    /^# Przemysław Sagało — Knowledge Hub \(Full Markdown Corpus\)/m,
+    'dist/llms-full.txt must contain full corpus header'
+  );
+  assert.match(
+    llmsFullContent,
+    /URL:\s*https:\/\/sagalo\.pro\//,
+    'dist/llms-full.txt must contain canonical URL: tags'
+  );
+  assert.match(
+    llmsFullContent,
+    /Tags:\s*.+/,
+    'dist/llms-full.txt must contain Tags: headers'
+  );
+
+  // 3. dist/robots.txt validation
+  const robotsTxtPath = path.join(distDir, 'robots.txt');
+  assert.ok(fs.existsSync(robotsTxtPath), 'dist/robots.txt must exist');
+
+  const robotsStat = fs.statSync(robotsTxtPath);
+  assert.ok(robotsStat.isFile(), 'dist/robots.txt must be a file');
+  assert.ok(robotsStat.size > 0, `dist/robots.txt must have non-zero size (got ${robotsStat.size} bytes)`);
+
+  const robotsContent = fs.readFileSync(robotsTxtPath, 'utf8');
+  assert.match(
+    robotsContent,
+    /Sitemap:\s*https:\/\/sagalo\.pro\/sitemap-index\.xml/,
+    'dist/robots.txt must declare Sitemap: https://sagalo.pro/sitemap-index.xml'
+  );
+  assert.match(
+    robotsContent,
+    /User-agent:\s*\*/,
+    'dist/robots.txt must declare User-agent: *'
+  );
+
+  const requiredBots = ['GPTBot', 'ClaudeBot', 'PerplexityBot', 'CCBot'];
+  for (const bot of requiredBots) {
+    const botPattern = new RegExp(`User-agent:\\s*${bot}[\\s\\S]*?Allow:\\s*\\/`, 'm');
+    assert.match(
+      robotsContent,
+      botPattern,
+      `dist/robots.txt must explicitly allow ${bot}`
+    );
+  }
+});
