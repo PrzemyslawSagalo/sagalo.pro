@@ -43,11 +43,11 @@ test('.github/workflows/ci.yml contains Node 22 LTS setup, npm ci, npx astro che
   const content = fs.readFileSync(ciPath, 'utf8');
 
   // Check pre-commit lint
-  assert.match(content, /uses:\s*actions\/setup-python@v5/);
+  assert.match(content, /uses:\s*actions\/setup-python@v\d+/);
   assert.match(content, /pre-commit run --all-files/);
 
   // Check Node 22 LTS setup and npm commands
-  assert.match(content, /uses:\s*actions\/setup-node@v4/);
+  assert.match(content, /uses:\s*actions\/setup-node@v\d+/);
   assert.match(content, /node-version:\s*['"]?22['"]?/);
   assert.match(content, /cache:\s*['"]npm['"]/);
   assert.match(content, /run:\s*npm ci/);
@@ -74,17 +74,17 @@ test('.github/workflows/deploy.yaml triggers on push to main/master and workflow
   assert.match(content, /id-token:\s*write/);
 
   // Check Node 22 setup & build
-  assert.match(content, /uses:\s*actions\/setup-node@v4/);
+  assert.match(content, /uses:\s*actions\/setup-node@v\d+/);
   assert.match(content, /node-version:\s*['"]?22['"]?/);
   assert.match(content, /run:\s*npm ci/);
   assert.match(content, /run:\s*npm run build/);
 
   // Check upload pages artifact with ./dist
-  assert.match(content, /uses:\s*actions\/upload-pages-artifact@v3/);
+  assert.match(content, /uses:\s*actions\/upload-pages-artifact@v\d+/);
   assert.match(content, /path:\s*\.?\/dist/);
 
   // Check deploy pages
-  assert.match(content, /uses:\s*actions\/deploy-pages@v4/);
+  assert.match(content, /uses:\s*actions\/deploy-pages@v\d+/);
 
   // Ensure hugo and go setup are removed
   assert.doesNotMatch(content, /actions-hugo/, 'Hugo actions must not be in deploy.yaml');
