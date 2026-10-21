@@ -18,15 +18,25 @@ A clean visual background banner (1584x396) without baked-in text, featuring hig
 Prerequisites:
 - [Hugo Extended](https://gohugo.io/installation/) (`>= 0.146.0`)
 - [Go](https://go.dev/) (`>= 1.21`)
+- [Python](https://www.python.org/) (`>= 3.10`) & `pre-commit` (for code quality hooks)
+- [Node.js](https://nodejs.org/) (`>= 18`) (for markdownlint via pre-commit)
 
-### Local Server
+### Quick Start with Make
+
 ```bash
-hugo server --buildDrafts --disableFastRender
+make help     # Display available workflow targets
+make serve    # Launch local development server with draft rendering
+make lint     # Run pre-commit hooks (yamllint, markdownlint, whitespace)
+make verify   # Verify Go and Hugo module integrity
+make build    # Production build with garbage collection and minification
+make test     # Run all quality checks (lint + verify + build)
 ```
 
-### Production Build
+### Git Pre-Commit Hooks
+
 ```bash
-hugo --gc --minify
+pip install pre-commit
+pre-commit install
 ```
 
 ## License

@@ -1,0 +1,13 @@
+---
+default: true
+MD013: false  # Allow long lines in technical cheat-sheets and prose
+MD033: false  # Allow inline HTML for Hugo hero overlays, badges, and layout tags
+MD024:
+  siblings_only: true  # Allow duplicate heading titles across distinct parent sections
+# Relaxed blank-line rules for Hugo compact layout, shortcodes, and documentation tables:
+MD022: false  # Headings blank lines
+MD031: false  # Code block blank lines
+MD032: false  # List blank lines
+MD058: false  # Table blank lines
+MD026: false  # Allow trailing punctuation in runbook/faq headings (e.g., '?')
+MD004: false  # Allow flexible unordered list marker styles
