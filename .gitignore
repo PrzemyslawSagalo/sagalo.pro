@@ -1,7 +1,7 @@
-# Hugo build artifacts
-public/
-resources/_gen/
-.hugo_build.lock
+# Astro build and cache directories
+dist/
+.astro/
+node_modules/
 
 # Maister orchestration artifacts
 .maister/
