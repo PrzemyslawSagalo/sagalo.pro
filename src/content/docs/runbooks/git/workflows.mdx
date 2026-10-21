@@ -1,0 +1,164 @@
+---
+title: Git Workflows & Daily Operations
+description: "Advanced Git workflows: bare worktrees, upstream rebasing, commit inspection, and end-of-day WIP branches."
+sidebar:
+  order: 2
+tags:
+  - git
+  - workflows
+  - worktrees
+  - rebase
+---
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+Curated workflows for daily Git operations, worktrees, branch synchronization, and commit inspection.
+
+## Branch Synchronization
+
+### Upstream Rebase Procedure
+
+<Steps>
+1. **Fetch upstream branch updates**:
+   Retrieve all new commits and refs from the remote tracking repository:
+   ```bash
+   git fetch origin
+   ```
+2. **Rebase local feature commits onto upstream**:
+   Replay your unique commits directly on top of the latest `origin/master`:
+   ```bash
+   git rebase origin/master
+   ```
+3. **Handle conflicts or cleanly abort**:
+   If conflicts occur, resolve files and run `git rebase --continue`, or abort cleanly back to previous state:
+   ```bash
+   git rebase --abort
+   ```
+</Steps>
+
+### Branch Sync Strategies
+
+<Tabs>
+  <TabItem label="Rebase (Clean History)">
+    ```bash
+    # Pull remote changes and rebase local commits cleanly on top
+    git pull --rebase
+    ```
+  </TabItem>
+  <TabItem label="Merge (Merge Commit)">
+    ```bash
+    # Pull remote changes creating an explicit merge commit
+    git pull --no-rebase
+    ```
+  </TabItem>
+</Tabs>
+
+---
+
+## Git Worktree
+
+Worktrees allow having multiple working branches checked out simultaneously in separate directories without multiple clones.
+
+### Bare Clone & Worktree Procedure
+
+<Steps>
+1. **Create a bare repository clone**:
+   Clone the repository without a default working tree:
+   ```bash
+   git clone --bare <repository-url> .bare
+   ```
+2. **Add a worktree for an existing branch**:
+   Check out a specific branch into its own dedicated directory:
+   ```bash
+   git worktree add <path> <branch>
+   ```
+3. **Add a worktree with a newly created branch**:
+   Branch off from a base reference and allocate a new directory:
+   ```bash
+   git worktree add <path> -b <new-branch> <base-branch>
+   ```
+4. **Inspect and clean up active worktrees**:
+   List active directories and unmount completed worktrees:
+   ```bash
+   git worktree list
+   git worktree remove <path>
+   ```
+</Steps>
+
+---
+
+## Log Inspection & Graph Visualization
+
+### Graph Visualization Variations
+
+<Tabs>
+  <TabItem label="Single-Line Graph">
+    ```bash
+    git log --graph --pretty=oneline
+    ```
+  </TabItem>
+  <TabItem label="Full Decorated Graph">
+    ```bash
+    git log --graph --decorate --all --oneline
+    ```
+  </TabItem>
+  <TabItem label="Clean No-Notes">
+    ```bash
+    git log --no-notes
+    ```
+  </TabItem>
+</Tabs>
+
+---
+
+## History Rewriting & Reverting
+
+### Interactive Rebase
+Rebase and clean up the last `n` commits:
+
+```bash
+git rebase -i HEAD~n
+```
+
+### Reverting Commits
+Create a new commit that reverses changes from a previous commit:
+
+```bash
+git revert <commit-hash>
+```
+
+When reverting a merge commit, specify the mainline parent flag (typically `-m 1`) to effectively reverse the changes introduced by the merge commit:
+
+```bash
+git revert -m 1 <merge-commit-hash>
+```
+
+### Deleting Tags
+Remove local and remote tags (see reference guide on [how to delete local and remote tags on git](https://devconnected.com/how-to-delete-local-and-remote-tags-on-git/)):
+
+```bash
+# Delete local tag
+git tag -d <tag-name>
+
+# Delete remote tag
+git push origin --delete <tag-name>
+```
+
+---
+
+## End-of-Day Work-in-Progress (WIP) Commits
+
+If your changes are not ready to be submitted at the end of your work day, make a dirty branch, commit all of your changes to it, and push it to a remote repository so work is never lost:
+
+```bash
+# Create and switch to a temporary WIP branch
+git checkout -b feature/<branch-name>-wip
+
+# Commit all changes to the dirty branch
+git commit -am "WIP"
+
+# Push dirty branch to remote
+git push -u origin feature/<branch-name>-wip
+```
+
+When resuming work, continue on the branch and rebase or squash the WIP commits into clean, atomic commits before opening a Pull Request.

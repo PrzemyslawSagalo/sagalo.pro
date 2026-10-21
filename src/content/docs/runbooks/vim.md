@@ -1,7 +1,13 @@
 ---
 title: Vim & Neovim Cheat Sheet
+description: "Vim & Neovim modal editing motions, regex substitution, buffer management, and sorting flags."
 sidebar:
   order: 2
+tags:
+  - vim
+  - neovim
+  - productivity
+  - editor
 ---
 
 A curated reference of everyday Vim and Neovim navigation, substitution, sorting, window management, and plugin shortcuts.

@@ -1,7 +1,13 @@
 ---
 title: Daily Toolkit & Resources
+description: "Daily productivity stack, shell utilities, AI tooling, and curated public bookmarks vault."
 sidebar:
   order: 7
+tags:
+  - productivity
+  - cli
+  - toolkit
+  - bookmarks
 ---
 
 Curated developer toolkit, productivity software, bookmark vault, and AI tooling used daily across projects.

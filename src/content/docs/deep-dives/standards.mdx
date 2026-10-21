@@ -1,19 +1,33 @@
 ---
 title: Engineering & Architecture Standards
+description: "Architectural patterns, code quality rules, dependency injection standards, and 12-factor infrastructure conventions."
 sidebar:
   order: 2
+tags:
+  - standards
+  - architecture
+  - dependency-injection
+  - 12-factor
+  - security
 ---
+
+import { FileTree } from '@astrojs/starlight/components';
 
 Architectural patterns, code quality rules, and infrastructure conventions enforced across systems.
 
 ## 1. Dependency Injection over Environment Branching
 
-### 📐 Core Rule
-Never use boolean flags (e.g., `USE_SANDBOX`, `IS_DEV`) to branch logic for different environments or mock services.
+:::tip[Standard: Inversion of Control]
+Never use boolean flags (e.g., `USE_SANDBOX`, `IS_DEV`) to branch logic for different environments or mock services. Never import concrete database clients or HTTP sessions inside core domain handlers. Wire them via dependency injection at application bootstrap.
 
 Code should remain entirely agnostic to the environment in which it executes. If an external service needs to be mocked, sandboxed, or rerouted, do not embed `if/else` logic inside the client or application code. Instead, control the connection dynamically by externalizing the Base URLs or endpoints via Environment Variables (e.g., `API_BASE_URL`).
+:::
 
-### ❌ Anti-Pattern (Environment Branching)
+:::danger[Anti-Pattern: Untyped Global Context]
+Using global dicts or mutable module singletons causes thread starvation and untestable race conditions. Hardcoding environment logic and branching behavior inside application code breaks testability and environment portability.
+:::
+
+### Anti-Pattern Example (Environment Branching)
 ```python
 # Bad: Hardcoding environment logic and branching behavior inside application code
 if settings.use_sandbox:
@@ -23,7 +37,7 @@ else:
     base_url = "https://live.api.com"
 ```
 
-### ✅ Standard (Dependency Injection via Config)
+### Standard Example (Dependency Injection via Config)
 ```python
 # Good: Application is completely ignorant of its environment
 # The Base URL is injected via configuration (Docker Compose, Terraform, Kubernetes, etc.)
@@ -33,6 +47,23 @@ self.client = httpx.AsyncClient(base_url=settings.api_base_url)
 ---
 
 ## 2. Infrastructure Requirements (12-Factor Compliant)
+
+### Canonical Repository Structure
+
+<FileTree>
+- src/
+  - components/
+    - FeatureCard.astro
+    - LlmContextCard.astro
+  - content/
+    - docs/
+      - deep-dives/
+      - runbooks/
+  - styles/
+    - custom.css
+- astro.config.mjs
+- package.json
+</FileTree>
 
 ### Infrastructure Isolation
 All infrastructure scripts (Terraform, CloudFormation, Ansible, Kubernetes manifests, etc.) MUST be contained within a dedicated `infrastructure/` directory rather than mixed into application source code.

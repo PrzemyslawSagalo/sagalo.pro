@@ -1,10 +1,53 @@
 ---
 title: Engineering & Deep Dives
+description: "Systems architecture principles, project kickoff checklist, and cloud deployment strategies."
 sidebar:
   order: 1
+tags:
+  - architecture
+  - systems
+  - deployment
+  - engineering
 ---
 
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
 Engineering deep dives, runtime internals, language specifications, and systems architecture notes.
+
+## Architecture & Deep Dives Catalog
+
+<CardGrid>
+  <LinkCard
+    title="Engineering & Architecture Standards"
+    href="/deep-dives/standards/"
+    description="Architectural patterns, code quality rules, dependency injection standards, and 12-factor infrastructure conventions."
+  />
+  <LinkCard
+    title="Python Engineering Overview"
+    href="/deep-dives/python/"
+    description="Python language philosophy, Zen of Python, idioms, execution internals, and reference resources."
+  />
+  <LinkCard
+    title="Python Concurrency"
+    href="/deep-dives/python/concurrency/"
+    description="Asyncio event loops, cooperative multitasking, task cancellation, and structured concurrency patterns."
+  />
+  <LinkCard
+    title="Python Environments"
+    href="/deep-dives/python/environments/"
+    description="Hermetic virtual environments, uv, pipx, dependency isolation, and packaging standards."
+  />
+  <LinkCard
+    title="Python Functions & Scope"
+    href="/deep-dives/python/functions/"
+    description="LEGB scope lookup, closures, decorators, parameter passing semantics, and namespace mechanics."
+  />
+  <LinkCard
+    title="Python Testing & Quality"
+    href="/deep-dives/python/tests/"
+    description="Pytest patterns, fixture scopes, parametrization, and isolation testing techniques."
+  />
+</CardGrid>
 
 ## Project Kick-off Checklist
 

@@ -11,23 +11,23 @@ const layoutsDir = path.join(projectRoot, 'layouts');
 
 const expectedFiles = [
   'index.mdx',
-  'deep-dives/index.md',
-  'deep-dives/standards.md',
+  'deep-dives/index.mdx',
+  'deep-dives/standards.mdx',
   'deep-dives/python/index.md',
   'deep-dives/python/concurrency.md',
   'deep-dives/python/environments.md',
   'deep-dives/python/functions.md',
   'deep-dives/python/tests.md',
-  'runbooks/index.md',
+  'runbooks/index.mdx',
   'runbooks/ai-coding-assistants.md',
-  'runbooks/containers.md',
+  'runbooks/containers.mdx',
   'runbooks/daily-toolkit.md',
   'runbooks/linux.md',
   'runbooks/sql.md',
   'runbooks/vim.md',
   'runbooks/git/index.md',
   'runbooks/git/cheat-sheet.md',
-  'runbooks/git/workflows.md',
+  'runbooks/git/workflows.mdx',
 ];
 
 function getAllFiles(dir, base = '') {
@@ -90,16 +90,16 @@ test('Test 3: Section root files are renamed from _index.md to index.md', () => 
   );
 
   const sectionRoots = [
-    'deep-dives/index.md',
+    'deep-dives/index.mdx',
     'deep-dives/python/index.md',
-    'runbooks/index.md',
+    'runbooks/index.mdx',
     'runbooks/git/index.md',
   ];
 
   for (const root of sectionRoots) {
     assert.ok(
       fs.existsSync(path.join(docsDir, root)),
-      `Section root file ${root} must exist as index.md`
+      `Section root file ${root} must exist as index.md or index.mdx`
     );
   }
 });
@@ -110,16 +110,16 @@ test('Test 4: Frontmatter conversion: weight: N is mapped to sidebar: { order: N
   const filesToCheck = [
     { file: 'runbooks/vim.md', expectedOrder: 2 },
     { file: 'runbooks/ai-coding-assistants.md', expectedOrder: 1 },
-    { file: 'runbooks/containers.md', expectedOrder: 4 },
+    { file: 'runbooks/containers.mdx', expectedOrder: 4 },
     { file: 'runbooks/linux.md', expectedOrder: 5 },
     { file: 'runbooks/sql.md', expectedOrder: 6 },
     { file: 'runbooks/daily-toolkit.md', expectedOrder: 7 },
     { file: 'runbooks/git/cheat-sheet.md', expectedOrder: 1 },
-    { file: 'runbooks/git/workflows.md', expectedOrder: 2 },
+    { file: 'runbooks/git/workflows.mdx', expectedOrder: 2 },
     { file: 'runbooks/git/index.md', expectedOrder: 3 },
-    { file: 'runbooks/index.md', expectedOrder: 2 },
-    { file: 'deep-dives/index.md', expectedOrder: 1 },
-    { file: 'deep-dives/standards.md', expectedOrder: 2 },
+    { file: 'runbooks/index.mdx', expectedOrder: 2 },
+    { file: 'deep-dives/index.mdx', expectedOrder: 1 },
+    { file: 'deep-dives/standards.mdx', expectedOrder: 2 },
     { file: 'deep-dives/python/index.md', expectedOrder: 1 },
     { file: 'deep-dives/python/concurrency.md', expectedOrder: 1 },
     { file: 'deep-dives/python/functions.md', expectedOrder: 2 },
