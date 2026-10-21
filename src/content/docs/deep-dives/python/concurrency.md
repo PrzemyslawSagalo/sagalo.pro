@@ -1,7 +1,14 @@
 ---
 title: Concurrency Models in Python
+description: "Deep dive into Python concurrency models, asyncio event loops, threading, multiprocessing, and GIL dynamics."
 sidebar:
   order: 1
+tags:
+  - python
+  - concurrency
+  - asyncio
+  - multiprocessing
+  - gil
 ---
 
 A comparative architectural breakdown of Python's concurrency paradigms: AsyncIO, Threading, and Multiprocessing.

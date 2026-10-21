@@ -1,7 +1,13 @@
 ---
 title: SQL & Relational Databases
+description: "Relational database operations, PostgreSQL queries, index tuning, and schema inspection cheat sheet."
 sidebar:
   order: 6
+tags:
+  - sql
+  - postgresql
+  - databases
+  - performance
 ---
 
 Quick visual reference for relational database queries, join behaviors, set operations, and query structures.

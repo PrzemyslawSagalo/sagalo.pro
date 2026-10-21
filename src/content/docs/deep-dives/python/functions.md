@@ -1,7 +1,13 @@
 ---
 title: Positional vs Keyword Arguments (Performance & Architecture)
+description: "Functional programming patterns in Python: closures, scopes, decorators, generator pipelines, and argument unpacking."
 sidebar:
   order: 2
+tags:
+  - python
+  - functions
+  - decorators
+  - generators
 ---
 
 In Python (CPython), the way arguments and variables are defined and passed directly impacts memory allocation, CPU throughput, and system architecture.
