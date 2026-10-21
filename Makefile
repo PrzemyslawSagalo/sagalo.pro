@@ -1,27 +1,30 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help lint verify build serve test
+.PHONY: help lint verify build serve preview test
 
 help:
 	@echo "Available commands:"
-	@echo "  make help    - Display available workflow targets"
-	@echo "  make lint    - Run pre-commit checks on all files"
-	@echo "  make verify  - Verify Go and Hugo module dependencies"
-	@echo "  make build   - Build site with Hugo (--gc --minify)"
-	@echo "  make serve   - Run local development Hugo server"
-	@echo "  make test    - Run all quality checks (lint + verify + build)"
+	@echo "  make help     - Display available workflow targets"
+	@echo "  make lint     - Run pre-commit checks on all files"
+	@echo "  make verify   - Run Astro type check (npx astro check)"
+	@echo "  make build    - Build site with Astro (npm run build)"
+	@echo "  make serve    - Run local Astro dev server (npm run dev)"
+	@echo "  make preview  - Preview production build locally (npm run preview)"
+	@echo "  make test     - Run all quality checks (lint + verify + build)"
 
 lint:
 	pre-commit run --all-files
 
 verify:
-	go mod verify
-	hugo mod verify
+	npx astro check
 
 build:
-	hugo --gc --minify
+	npm run build
 
 serve:
-	hugo server --buildDrafts --disableFastRender
+	npm run dev
+
+preview:
+	npm run preview
 
 test: lint verify build
