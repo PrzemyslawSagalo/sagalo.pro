@@ -2,8 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const projectRoot = process.cwd();
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const docsDir = path.join(projectRoot, 'src/content/docs');
 const contentDir = path.join(projectRoot, 'content');
 const layoutsDir = path.join(projectRoot, 'layouts');

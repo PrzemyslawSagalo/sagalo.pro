@@ -2,8 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const projectRoot = process.cwd();
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const customCssPath = path.join(projectRoot, 'src/styles/custom.css');
 const heroBannerPath = path.join(projectRoot, 'src/components/HeroBanner.astro');
 const featureGridPath = path.join(projectRoot, 'src/components/FeatureGrid.astro');

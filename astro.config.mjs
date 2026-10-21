@@ -16,20 +16,24 @@ export default defineConfig({
           lang: 'en',
         },
       },
-      social: {
-        github: 'https://github.com/przemyslawsagalo',
-      },
+      social: [
+        {
+          icon: 'github',
+          label: 'GitHub',
+          href: 'https://github.com/przemyslawsagalo',
+        },
+      ],
       customCss: [
         './src/styles/custom.css',
       ],
       sidebar: [
         {
           label: 'Deep Dives',
-          autogenerate: { directory: 'deep-dives' },
+          items: [{ autogenerate: { directory: 'deep-dives' } }],
         },
         {
           label: 'Runbooks',
-          autogenerate: { directory: 'runbooks' },
+          items: [{ autogenerate: { directory: 'runbooks' } }],
         },
       ],
       tableOfContents: {

@@ -2,15 +2,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const projectRoot = process.cwd();
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 test('public/CNAME exists and contains exact string sagalo.pro', () => {
   const cnamePath = path.join(projectRoot, 'public', 'CNAME');
   assert.ok(fs.existsSync(cnamePath), 'public/CNAME must exist');
   const content = fs.readFileSync(cnamePath, 'utf8').trim();
   assert.equal(content, 'sagalo.pro', 'public/CNAME must contain exact string sagalo.pro');
-  
+
   // Verify legacy static/ directory is removed
   const staticPath = path.join(projectRoot, 'static');
   assert.ok(!fs.existsSync(staticPath), 'static/ directory must not linger in repository');
