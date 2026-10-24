@@ -826,4 +826,30 @@ Closing the outer 4-backtick block:
     false,
     'Card inside multiline CardGrid wrapper must not remain raw JSX'
   );
+
+  // Regression: Fence with component tags in metadata (e.g. ~~~mdx title="<Tabs>") must open as fence
+  const inputFenceWithComponentInMeta = `~~~mdx title="<Tabs>"
+<LinkCard title="Example Card in Fence" href="/meta-ex/" />
+~~~
+
+<LinkCard title="Live Card After Fence" href="/live-after-meta/" />`;
+  const outputFenceMeta = stripStarlightJsx(inputFenceWithComponentInMeta);
+  assert.ok(
+    outputFenceMeta.includes('<LinkCard title="Example Card in Fence" href="/meta-ex/" />'),
+    'LinkCard inside fence with component tag in title metadata must remain literal code'
+  );
+  assert.equal(
+    outputFenceMeta.includes('- [Example Card in Fence]'),
+    false,
+    'Example card inside fence must not be converted to link'
+  );
+  assert.ok(
+    outputFenceMeta.includes('- [Live Card After Fence](/live-after-meta/)'),
+    'Live card following fence must be serialized to markdown link'
+  );
+  assert.equal(
+    outputFenceMeta.includes('<LinkCard title="Live Card After Fence"'),
+    false,
+    'Live card after fence must not remain raw JSX'
+  );
 });

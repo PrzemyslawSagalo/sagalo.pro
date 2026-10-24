@@ -570,16 +570,6 @@ function protectCode(content: string, codeBlocks: string[]): string {
       }
     }
 
-    // If this line opens or closes an MDX container at non-code indentation, update container state
-    const cleanLine = stripInlineCodeSpans(line);
-    const hasMdxTag = /<\/?(Tabs|TabItem|Steps|FileTree|CardGrid)\b/.test(cleanLine);
-    if (hasMdxTag && measureIndent(line) <= 3) {
-      updateMdxContainerState(line, mdxState);
-      resultLines.push(line);
-      i++;
-      continue;
-    }
-
     // Check fenced code block opener (including blockquoted, list-item, or indented fences in MDX containers)
     const fenceMatch = line.match(/^((?:\s*>[ \t]?)*(?:\s*(?:[-*+]|\d+[.)])\s+)?\s*)(`{3,}|~{3,})(.*)$/);
     if (fenceMatch) {
