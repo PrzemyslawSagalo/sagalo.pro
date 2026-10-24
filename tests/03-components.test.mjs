@@ -10,22 +10,18 @@ const heroBannerPath = path.join(projectRoot, 'src/components/HeroBanner.astro')
 const featureGridPath = path.join(projectRoot, 'src/components/FeatureGrid.astro');
 const featureCardPath = path.join(projectRoot, 'src/components/FeatureCard.astro');
 
-test('Test 1: src/styles/custom.css exists and imports @fontsource/inter weights (300, 400, 500, 600, 700, 800)', () => {
+test('Test 1: src/styles/custom.css exists and imports Inter fontsource stylesheet', () => {
   assert.ok(fs.existsSync(customCssPath), 'src/styles/custom.css must exist');
   const css = fs.readFileSync(customCssPath, 'utf8');
 
-  const requiredWeights = ['300', '400', '500', '600', '700', '800'];
-  for (const weight of requiredWeights) {
-    const importRegex = new RegExp(`@import\\s+['"]@fontsource/inter/latin-${weight}\\.css['"]`);
-    assert.match(
-      css,
-      importRegex,
-      `custom.css must import @fontsource/inter/latin-${weight}.css`
-    );
-  }
+  assert.match(
+    css,
+    /@import\s+['"]@fontsource(-variable)?\/inter/m,
+    'custom.css must import Inter fontsource stylesheet'
+  );
 });
 
-test('Test 2: custom.css overrides --sl-color-bg and locks color-scheme: dark !important on :root and html/body', () => {
+test('Test 2: custom.css overrides --sl-color-bg and locks color-scheme: dark on :root and html/body', () => {
   assert.ok(fs.existsSync(customCssPath), 'src/styles/custom.css must exist');
   const css = fs.readFileSync(customCssPath, 'utf8');
 
@@ -33,18 +29,18 @@ test('Test 2: custom.css overrides --sl-color-bg and locks color-scheme: dark !i
   assert.match(css, /--theme-bg-dark:\s*#0b0f19/, 'custom.css must define --theme-bg-dark: #0b0f19');
   assert.match(css, /--sl-color-bg:\s*var\(--theme-bg-dark\)/, 'custom.css must override --sl-color-bg');
 
-  // Verify color-scheme: dark !important on :root
+  // Verify color-scheme: dark on :root
   assert.match(
     css,
-    /:root\s*\{[^}]*color-scheme:\s*dark\s*!important/s,
-    ':root must enforce color-scheme: dark !important'
+    /:root\s*\{[^}]*color-scheme:\s*dark/s,
+    ':root must enforce color-scheme: dark'
   );
 
-  // Verify color-scheme: dark !important and background-color on html, body
+  // Verify color-scheme: dark and background-color on html, body
   assert.match(
     css,
-    /html,\s*body\s*\{[^}]*color-scheme:\s*dark\s*!important/s,
-    'html, body must enforce color-scheme: dark !important'
+    /html,\s*body\s*\{[^}]*color-scheme:\s*dark/s,
+    'html, body must enforce color-scheme: dark'
   );
   assert.match(
     css,

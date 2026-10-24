@@ -14,6 +14,12 @@ export async function resolve(specifier, context, nextResolve) {
       format: 'module',
     };
   }
+  if (specifier === './llms.txt') {
+    return {
+      url: new URL('./llms.txt.ts', context.parentURL).href,
+      shortCircuit: true,
+    };
+  }
   return nextResolve(specifier, context);
 }
 `;

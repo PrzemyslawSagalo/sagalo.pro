@@ -63,11 +63,12 @@ git add <path/to/resolved/file>
 git revert --continue
 ```
 
-> [!TIP]
-> If you need to abort the revert and restore branch state, run:
-> ```bash
-> git revert --abort
-> ```
+:::tip
+If you need to abort the revert and restore branch state, run:
+```bash
+git revert --abort
+```
+:::
 
 ### 4. Squash Reverts into a Single Clean Commit
 Clean up the branch history by combining multiple revert commits into one atomic commit:

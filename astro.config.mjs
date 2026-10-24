@@ -1,14 +1,17 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import sitemap from '@astrojs/sitemap';
 
 export default defineConfig({
   site: 'https://sagalo.pro',
   output: 'static',
   trailingSlash: 'always',
   integrations: [
+    sitemap(),
     starlight({
       title: 'Przemysław Sagało',
       description: 'Systems. Architecture. Execution. Engineering deep dives and operational runbooks by Przemysław Sagało.',
+      favicon: '/favicon.svg',
       defaultLocale: 'root',
       locales: {
         root: {

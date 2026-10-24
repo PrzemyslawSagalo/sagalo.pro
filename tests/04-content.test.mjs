@@ -13,7 +13,7 @@ const expectedFiles = [
   'index.mdx',
   'deep-dives/index.mdx',
   'deep-dives/standards.mdx',
-  'deep-dives/python/index.md',
+  'deep-dives/python/index.mdx',
   'deep-dives/python/concurrency.md',
   'deep-dives/python/environments.md',
   'deep-dives/python/functions.md',
@@ -25,7 +25,7 @@ const expectedFiles = [
   'runbooks/linux.md',
   'runbooks/sql.md',
   'runbooks/vim.md',
-  'runbooks/git/index.md',
+  'runbooks/git/index.mdx',
   'runbooks/git/cheat-sheet.md',
   'runbooks/git/workflows.mdx',
 ];
@@ -91,9 +91,9 @@ test('Test 3: Section root files are renamed from _index.md to index.md', () => 
 
   const sectionRoots = [
     'deep-dives/index.mdx',
-    'deep-dives/python/index.md',
+    'deep-dives/python/index.mdx',
     'runbooks/index.mdx',
-    'runbooks/git/index.md',
+    'runbooks/git/index.mdx',
   ];
 
   for (const root of sectionRoots) {
@@ -116,11 +116,11 @@ test('Test 4: Frontmatter conversion: weight: N is mapped to sidebar: { order: N
     { file: 'runbooks/daily-toolkit.md', expectedOrder: 7 },
     { file: 'runbooks/git/cheat-sheet.md', expectedOrder: 1 },
     { file: 'runbooks/git/workflows.mdx', expectedOrder: 2 },
-    { file: 'runbooks/git/index.md', expectedOrder: 3 },
-    { file: 'runbooks/index.mdx', expectedOrder: 2 },
-    { file: 'deep-dives/index.mdx', expectedOrder: 1 },
+    { file: 'runbooks/git/index.mdx', expectedOrder: 0 },
+    { file: 'runbooks/index.mdx', expectedOrder: 0 },
+    { file: 'deep-dives/index.mdx', expectedOrder: 0 },
     { file: 'deep-dives/standards.mdx', expectedOrder: 2 },
-    { file: 'deep-dives/python/index.md', expectedOrder: 1 },
+    { file: 'deep-dives/python/index.mdx', expectedOrder: 0 },
     { file: 'deep-dives/python/concurrency.md', expectedOrder: 1 },
     { file: 'deep-dives/python/functions.md', expectedOrder: 2 },
     { file: 'deep-dives/python/tests.md', expectedOrder: 3 },

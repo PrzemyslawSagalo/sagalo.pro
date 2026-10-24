@@ -138,7 +138,7 @@ test('Test 3: Verify the 4 Python deep-dive documents exist at deep-dives/python
     assert.ok(fs.existsSync(docPath), `${docName} must exist in deep-dives/python/`);
 
     // Ensure not duplicate of index
-    assert.notEqual(docName, 'index.md', `${docName} must not be named index.md`);
+    assert.ok(!docName.startsWith('index.'), `${docName} must not be named index`);
     assert.ok(!seenPaths.has(docName), `Path ${docName} must not be duplicate`);
     seenPaths.add(docName);
 
@@ -151,8 +151,10 @@ test('Test 3: Verify the 4 Python deep-dive documents exist at deep-dives/python
     assert.equal(parsed.success, true, `${docName} must parse cleanly with docsSchema`);
   }
 
-  // Also verify index.md exists and is separate from the 4 docs
-  const indexPath = path.join(pythonDir, 'index.md');
-  assert.ok(fs.existsSync(indexPath), 'deep-dives/python/index.md must exist as the catalog index');
-  assert.ok(!seenPaths.has('index.md'), 'index.md must not collide with deep dive doc names');
+  // Also verify index (md or mdx) exists and is separate from the 4 docs
+  const indexPath = fs.existsSync(path.join(pythonDir, 'index.mdx'))
+    ? path.join(pythonDir, 'index.mdx')
+    : path.join(pythonDir, 'index.md');
+  assert.ok(fs.existsSync(indexPath), 'deep-dives/python index file (index.md or index.mdx) must exist as the catalog index');
+  assert.ok(!seenPaths.has('index.md') && !seenPaths.has('index.mdx'), 'index file must not collide with deep dive doc names');
 });

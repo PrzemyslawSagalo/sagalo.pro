@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
-import { getCanonicalUrl } from './llms.txt.ts';
+import { getCanonicalUrl } from './llms.txt';
 
 export interface FullDocEntryLike {
   id: string;
@@ -9,6 +9,122 @@ export interface FullDocEntryLike {
     title: string;
     tags?: string[];
   };
+}
+
+function parseAttributes(attrs: string): Map<string, string> {
+  const map = new Map<string, string>();
+  const regex = /([a-zA-Z0-9_-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{([^}]*)\})/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(attrs)) !== null) {
+    const key = match[1].toLowerCase();
+    const val = (match[2] ?? match[3] ?? match[4] ?? '').trim();
+    if (!map.has(key)) {
+      map.set(key, val);
+    }
+  }
+  return map;
+}
+
+function protectCode(content: string, codeBlocks: string[]): string {
+  const lines = content.split('\n');
+  const resultLines: string[] = [];
+  let inFence = false;
+  let fenceChar = '';
+  let fenceLength = 0;
+  let currentBlock: string[] = [];
+
+  for (const line of lines) {
+    if (!inFence) {
+      const match = line.match(/^(\s*)(`{3,}|~{3,})(.*)$/);
+      if (match) {
+        inFence = true;
+        fenceChar = match[2][0];
+        fenceLength = match[2].length;
+        currentBlock = [line];
+      } else {
+        resultLines.push(line);
+      }
+    } else {
+      currentBlock.push(line);
+      const closeMatch = line.match(new RegExp(`^\\s*\\${fenceChar}{${fenceLength},}\\s*$`));
+      if (closeMatch) {
+        inFence = false;
+        const blockText = currentBlock.join('\n');
+        const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
+        codeBlocks.push(blockText);
+        resultLines.push(id);
+        currentBlock = [];
+      }
+    }
+  }
+
+  if (inFence) {
+    const blockText = currentBlock.join('\n');
+    const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
+    codeBlocks.push(blockText);
+    resultLines.push(id);
+  }
+
+  let protectedContent = resultLines.join('\n');
+  protectedContent = protectedContent.replace(/(`+)([\s\S]*?)\1/g, (match) => {
+    const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
+    codeBlocks.push(match);
+    return id;
+  });
+
+  return protectedContent;
+}
+
+export function stripStarlightJsx(content: string): string {
+  const codeBlocks: string[] = [];
+
+  // Protect fenced code blocks (tracking opening delimiter length for nested fences)
+  // and inline code spans so literal code examples are preserved unchanged.
+  const protectedContent = protectCode(content, codeBlocks);
+
+  // 1. Strip MDX import declarations
+  let cleaned = protectedContent
+    .replace(/^import\s+[^;\n]+;\s*$/gm, '')
+    .replace(/^import\s*\{[\s\S]*?\}\s*from\s*['"][^'"]+['"];?\s*$/gm, '');
+
+  // 2. Serialize LinkCards into Markdown links with descriptions before stripping wrapper tags.
+  // The tag matcher and tokenizer prevent quoted attribute values from masking or interfering with real attributes.
+  const linkCardRegex = /<LinkCard\b((?:[^>"'{}]|"[^"]*"|'[^']*'|\{[^}]*\})*)\/?>/gi;
+  cleaned = cleaned.replace(linkCardRegex, (_, attrs) => {
+    const attrMap = parseAttributes(attrs);
+    const title = attrMap.get('title') || '';
+    const href = attrMap.get('href') || '';
+    const desc = attrMap.get('description') || '';
+
+    if (title && href) {
+      return desc ? `- [${title}](${href}): ${desc}` : `- [${title}](${href})`;
+    } else if (title) {
+      return desc ? `- **${title}**: ${desc}` : `- **${title}**`;
+    }
+    return '';
+  });
+
+  // 3. Serialize TabItem labels so tab context is preserved in LLM Markdown
+  const tabItemRegex = /<TabItem\b((?:[^>"'{}]|"[^"]*"|'[^']*'|\{[^}]*\})*)>/gi;
+  cleaned = cleaned.replace(tabItemRegex, (_, attrs) => {
+    const attrMap = parseAttributes(attrs);
+    const label = attrMap.get('label') || '';
+    return label ? `\n\n**Tab: ${label}**\n\n` : '\n';
+  });
+
+  // 4. Strip remaining Starlight wrapper tags (<CardGrid>, <Tabs>, <Steps>, etc.)
+  const wrapperTagsRegex = /<\/?(?:Tabs|TabItem|Steps|FileTree|CardGrid)\b(?:[^>"'{}]|"[^"]*"|'[^']*'|\{[^}]*\})*\/?>/gi;
+  cleaned = cleaned
+    .replace(wrapperTagsRegex, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  // Restore protected fenced and inline code blocks
+  for (let i = 0; i < codeBlocks.length; i++) {
+    cleaned = cleaned.replace(`\x00__CODE_BLOCK_${i}__\x00`, () => codeBlocks[i]);
+  }
+
+  return cleaned;
 }
 
 export function generateLlmsFullTxt(docs: FullDocEntryLike[]): string {
@@ -23,11 +139,8 @@ export function generateLlmsFullTxt(docs: FullDocEntryLike[]): string {
   for (const doc of contentDocs) {
     const tagsStr = (doc.data.tags || []).join(', ');
     const rawBody = doc.body ? doc.body.trim() : '';
-    // Strip MDX import declarations so plaintext corpus remains clean for LLM context injection
-    const bodyStr = rawBody
-      .replace(/^import\s+[^;\n]+;\s*$/gm, '')
-      .replace(/^import\s*\{[\s\S]*?\}\s*from\s*['"][^'"]+['"];?\s*$/gm, '')
-      .trim();
+    // Strip MDX imports and Starlight JSX components for clean LLM context injection
+    const bodyStr = stripStarlightJsx(rawBody);
     const section = [
       '---',
       '',

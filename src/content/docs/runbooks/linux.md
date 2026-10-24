@@ -70,8 +70,9 @@ Quick regex-based stream replacement:
 sed -i 's/search_pattern/replacement_text/g' path/to/file.txt
 ```
 
-> [!NOTE]
-> For a visual deep dive into stream editing patterns, see this [Visual Guide to sed](https://betterprogramming.pub/a-visual-guide-to-sed-a7a8abd2f675).
+:::note
+For a visual deep dive into stream editing patterns, see this [Visual Guide to sed](https://betterprogramming.pub/a-visual-guide-to-sed-a7a8abd2f675).
+:::
 
 ---
 
