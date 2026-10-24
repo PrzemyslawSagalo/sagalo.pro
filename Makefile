@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := help
 
 .PHONY: help lint verify build serve preview test npm-test
+.NOTPARALLEL: test
 
 help:
 	@echo "Available commands:"

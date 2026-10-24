@@ -25,22 +25,62 @@ function parseAttributes(attrs: string): Map<string, string> {
   return map;
 }
 
-export function stripStarlightJsx(content: string): string {
-  const codeBlocks: string[] = [];
+function protectCode(content: string, codeBlocks: string[]): string {
+  const lines = content.split('\n');
+  const resultLines: string[] = [];
+  let inFence = false;
+  let fenceChar = '';
+  let fenceLength = 0;
+  let currentBlock: string[] = [];
 
-  // Protect fenced code blocks (```...``` or ~~~...~~~) and inline code spans (`...`)
-  // so literal code examples are not altered during MDX tag transformations.
-  let protectedContent = content.replace(/(```[\s\S]*?```|~~~[\s\S]*?~~~)/g, (match) => {
+  for (const line of lines) {
+    if (!inFence) {
+      const match = line.match(/^(\s*)(`{3,}|~{3,})(.*)$/);
+      if (match) {
+        inFence = true;
+        fenceChar = match[2][0];
+        fenceLength = match[2].length;
+        currentBlock = [line];
+      } else {
+        resultLines.push(line);
+      }
+    } else {
+      currentBlock.push(line);
+      const closeMatch = line.match(new RegExp(`^\\s*\\${fenceChar}{${fenceLength},}\\s*$`));
+      if (closeMatch) {
+        inFence = false;
+        const blockText = currentBlock.join('\n');
+        const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
+        codeBlocks.push(blockText);
+        resultLines.push(id);
+        currentBlock = [];
+      }
+    }
+  }
+
+  if (inFence) {
+    const blockText = currentBlock.join('\n');
     const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
-    codeBlocks.push(match);
-    return id;
-  });
+    codeBlocks.push(blockText);
+    resultLines.push(id);
+  }
 
+  let protectedContent = resultLines.join('\n');
   protectedContent = protectedContent.replace(/(`+)([\s\S]*?)\1/g, (match) => {
     const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
     codeBlocks.push(match);
     return id;
   });
+
+  return protectedContent;
+}
+
+export function stripStarlightJsx(content: string): string {
+  const codeBlocks: string[] = [];
+
+  // Protect fenced code blocks (tracking opening delimiter length for nested fences)
+  // and inline code spans so literal code examples are preserved unchanged.
+  const protectedContent = protectCode(content, codeBlocks);
 
   // 1. Strip MDX import declarations
   let cleaned = protectedContent

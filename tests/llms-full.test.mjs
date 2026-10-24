@@ -202,4 +202,28 @@ Here is an inline code snippet: \`<LinkCard title="Inline Example" href="/inline
     output.includes('`<LinkCard title="Inline Example" href="/inline/" />`'),
     'Inline code span must retain literal <LinkCard> tag'
   );
+
+  const inputNestedFences = `
+Here is a 4-backtick code fence containing a nested 3-backtick fence:
+\`\`\`\`markdown
+Here is a nested 3-backtick MDX example:
+\`\`\`mdx
+<CardGrid>
+  <LinkCard title="Nested Example" href="/nested/" description="Nested desc" />
+</CardGrid>
+\`\`\`
+Closing the outer 4-backtick block:
+\`\`\`\`
+`;
+
+  const outputNestedFences = stripStarlightJsx(inputNestedFences);
+  assert.ok(
+    outputNestedFences.includes('<LinkCard title="Nested Example" href="/nested/" description="Nested desc" />'),
+    'Nested 3-backtick fence within 4-backtick fence must not be altered'
+  );
+  assert.equal(
+    outputNestedFences.includes('- [Nested Example]'),
+    false,
+    'Nested card must not be converted into a markdown list item'
+  );
 });
