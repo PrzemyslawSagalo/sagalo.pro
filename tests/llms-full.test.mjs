@@ -288,7 +288,7 @@ test('Test 4: src/pages/llms-full.txt.ts imports getCanonicalUrl from "./llms.tx
 });
 
 test('Test 5: stripStarlightJsx preserves literal JSX examples in fenced code blocks and inline code spans', async () => {
-  const { stripStarlightJsx } = await import(`file://${llmsFullTsPath}`);
+  const { stripStarlightJsx, generateLlmsFullTxt } = await import(`file://${llmsFullTsPath}`);
 
   const input = `
 Here is a live card:
@@ -935,5 +935,61 @@ Continuation paragraph.`;
     outputBulletIndentedFence.includes('<LinkCard title="Live Card In Bullet"'),
     false,
     'Live card in bullet must not remain raw JSX'
+  );
+
+  // Regression: CRLF line endings in fenced code blocks must be normalized and preserved
+  const inputCrlf = '~~~mdx\r\n<LinkCard title="CRLF Example" href="/crlf/" />\r\n~~~\r\n\r\n<LinkCard title="Live Card After CRLF" href="/live-crlf/" />';
+  const outputCrlf = stripStarlightJsx(inputCrlf);
+  assert.ok(
+    outputCrlf.includes('<LinkCard title="CRLF Example" href="/crlf/" />'),
+    'CRLF fenced block must retain literal LinkCard code'
+  );
+  assert.equal(
+    outputCrlf.includes('- [CRLF Example]'),
+    false,
+    'CRLF fenced block content must not be converted to link'
+  );
+  assert.ok(
+    outputCrlf.includes('- [Live Card After CRLF](/live-crlf/)'),
+    'Live card after CRLF fence must be serialized to markdown link'
+  );
+
+  // Regression: Blockquotes nested inside lists (- > ~~~mdx) must be recognized as code containers
+  const inputListNestedBq = `- > ~~~mdx\n  > <LinkCard title="Literal In List BQ" href="/literal-list-bq/" />\n  > ~~~\n\n<LinkCard title="Live After List BQ" href="/live-list-bq/" />`;
+  const outputListNestedBq = stripStarlightJsx(inputListNestedBq);
+  assert.ok(
+    outputListNestedBq.includes('<LinkCard title="Literal In List BQ" href="/literal-list-bq/" />'),
+    'Fence inside blockquote nested in list must retain literal LinkCard code'
+  );
+  assert.equal(
+    outputListNestedBq.includes('- [Literal In List BQ]'),
+    false,
+    'Code inside blockquote nested in list must not be converted to link'
+  );
+  assert.ok(
+    outputListNestedBq.includes('- [Live After List BQ](/live-list-bq/)'),
+    'Live card following list-nested blockquote must be serialized to markdown link'
+  );
+
+  // Regression: Document beginning with leading 4-space indented code block must retain literal code
+  const docsWithLeadingIndent = [
+    {
+      id: 'leading-indent.md',
+      data: {
+        title: 'Leading Indent Doc',
+        tags: ['test'],
+      },
+      body: '    <LinkCard title="Leading Indent Code" href="/leading-code/" />\n\nSome normal paragraph text.',
+    },
+  ];
+  const outputLeadingIndent = generateLlmsFullTxt(docsWithLeadingIndent);
+  assert.ok(
+    outputLeadingIndent.includes('    <LinkCard title="Leading Indent Code" href="/leading-code/" />'),
+    'Leading indented code block must be preserved without being trimmed before code protection'
+  );
+  assert.equal(
+    outputLeadingIndent.includes('- [Leading Indent Code]'),
+    false,
+    'Leading indented code block must not be serialized to markdown link'
   );
 });

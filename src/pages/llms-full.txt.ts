@@ -260,16 +260,110 @@ function getRestAfterBlockquote(line: string, bqCount: number): string | null {
   return rest;
 }
 
+type ContainerOrder = 'root' | 'bq' | 'list' | 'bq-list' | 'list-bq';
+
+function sliceIndent(str: string, widthToConsume: number): string {
+  let width = 0;
+  let idx = 0;
+  while (idx < str.length && width < widthToConsume) {
+    if (str[idx] === '\t') {
+      const nextTab = width + (4 - (width % 4));
+      if (nextTab > widthToConsume) {
+        return ' '.repeat(nextTab - widthToConsume) + str.slice(idx + 1);
+      }
+      width = nextTab;
+    } else if (str[idx] === ' ') {
+      width += 1;
+    } else {
+      break;
+    }
+    idx++;
+  }
+  return str.slice(idx);
+}
+
+function getRestAfterFenceContainers(
+  line: string,
+  containerOrder: ContainerOrder,
+  fenceBqCount: number,
+  fenceListIndent: number
+): { rest: string | null; containerEnded: boolean } {
+  if (containerOrder === 'root') {
+    return { rest: line, containerEnded: false };
+  }
+
+  if (containerOrder === 'bq') {
+    const afterBq = getRestAfterBlockquote(line, fenceBqCount);
+    if (afterBq === null) {
+      return { rest: null, containerEnded: true };
+    }
+    return { rest: afterBq, containerEnded: false };
+  }
+
+  if (containerOrder === 'list') {
+    if (line.trim() === '') {
+      return { rest: '', containerEnded: false };
+    }
+    const indent = measureIndent(line);
+    if (indent < fenceListIndent) {
+      return { rest: null, containerEnded: true };
+    }
+    return { rest: line, containerEnded: false };
+  }
+
+  if (containerOrder === 'bq-list') {
+    const afterBq = getRestAfterBlockquote(line, fenceBqCount);
+    if (afterBq === null) {
+      return { rest: null, containerEnded: true };
+    }
+    if (afterBq.trim() === '') {
+      return { rest: '', containerEnded: false };
+    }
+    const indent = measureIndent(afterBq);
+    if (indent < fenceListIndent) {
+      return { rest: null, containerEnded: true };
+    }
+    return { rest: afterBq, containerEnded: false };
+  }
+
+  if (containerOrder === 'list-bq') {
+    if (line.trim() === '') {
+      return { rest: '', containerEnded: false };
+    }
+    const indent = measureIndent(line);
+    if (indent < fenceListIndent) {
+      return { rest: null, containerEnded: true };
+    }
+    const afterList = sliceIndent(line, fenceListIndent);
+    const afterBq = getRestAfterBlockquote(afterList, fenceBqCount);
+    if (afterBq === null) {
+      return { rest: null, containerEnded: true };
+    }
+    return { rest: afterBq, containerEnded: false };
+  }
+
+  return { rest: line, containerEnded: false };
+}
+
 function checkClosingFence(
   line: string,
   fenceChar: string,
   fenceLength: number,
   fenceBqCount: number,
   fenceIndent: number,
-  fenceListIndent: number
+  fenceListIndent: number,
+  containerOrder: ContainerOrder
 ): boolean {
   let rest = line;
-  if (fenceBqCount > 0) {
+  if (containerOrder === 'list-bq') {
+    const indent = measureIndent(line);
+    if (indent < fenceListIndent) return false;
+    const afterList = sliceIndent(line, fenceListIndent);
+    const afterBq = getRestAfterBlockquote(afterList, fenceBqCount);
+    if (afterBq === null) return false;
+    if (/^[ ]{0,3}>/.test(afterBq)) return false;
+    rest = afterBq;
+  } else if (containerOrder === 'bq' || containerOrder === 'bq-list') {
     const afterBq = getRestAfterBlockquote(line, fenceBqCount);
     if (afterBq === null) return false;
     if (/^[ ]{0,3}>/.test(afterBq)) return false;
@@ -287,28 +381,19 @@ function checkClosingFence(
 
   const closeIndent = measureIndent(match[1]);
 
-  // If the fence opened inside a list item, the closing delimiter must retain the list item's indentation.
-  // A dedented delimiter (closeIndent < fenceListIndent) ends the list container and should be reprocessed
-  // by list-boundary logic as a potential new opener outside the list.
-  if (fenceListIndent > 0 && closeIndent < fenceListIndent) {
-    return false;
-  }
-
-  // Calculate maximum closing fence indentation relative to enclosing Markdown/MDX container:
-  // Root-level or blockquoted fences (0-3 spaces of initial indent) have a container base indent of 0,
-  // so closing fences can never be indented 4 or more spaces per CommonMark §4.5.
-  // Fences within list items use fenceListIndent, and indented MDX containers use fenceIndent (>= 4).
-  let containerBaseIndent = 0;
-  if (fenceListIndent > 0) {
-    containerBaseIndent = fenceListIndent;
-  } else if (fenceIndent >= 4) {
-    containerBaseIndent = fenceIndent;
+  if (containerOrder === 'list' || containerOrder === 'bq-list') {
+    if (fenceListIndent > 0 && closeIndent < fenceListIndent) {
+      return false;
+    }
+    const maxCloseIndent = fenceListIndent + 3;
+    if (closeIndent > maxCloseIndent) return false;
+  } else if (containerOrder === 'list-bq' || containerOrder === 'bq') {
+    if (closeIndent > 3) return false;
   } else {
-    containerBaseIndent = 0;
+    const containerBaseIndent = fenceIndent >= 4 ? fenceIndent : 0;
+    const maxCloseIndent = containerBaseIndent + 3;
+    if (closeIndent > maxCloseIndent) return false;
   }
-  const maxCloseIndent = containerBaseIndent + 3;
-
-  if (closeIndent > maxCloseIndent) return false;
 
   return true;
 }
@@ -408,15 +493,16 @@ function updateMdxContainerState(line: string, state: MdxContainerState): void {
 }
 
 function protectCode(content: string, codeBlocks: string[]): string {
-  const lines = content.split('\n');
+  const normalized = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lines = normalized.split('\n');
   const resultLines: string[] = [];
   let inFence = false;
   let fenceChar = '';
   let fenceLength = 0;
-  let fenceInBlockquote = false;
   let fenceBqCount = 0;
   let fenceListIndent = 0;
   let fenceIndent = 0;
+  let fenceContainerOrder: ContainerOrder = 'root';
   let currentListIndent = 0;
   const mdxState: MdxContainerState = { depth: 0, openTagName: null };
   let currentBlock: string[] = [];
@@ -427,13 +513,23 @@ function protectCode(content: string, codeBlocks: string[]): string {
 
     if (inFence) {
       // 1. Check if this line is a closing fence delimiter validated against container context & indentation
-      if (checkClosingFence(line, fenceChar, fenceLength, fenceBqCount, fenceIndent, fenceListIndent)) {
+      if (
+        checkClosingFence(
+          line,
+          fenceChar,
+          fenceLength,
+          fenceBqCount,
+          fenceIndent,
+          fenceListIndent,
+          fenceContainerOrder
+        )
+      ) {
         currentBlock.push(line);
         inFence = false;
-        fenceInBlockquote = false;
         fenceBqCount = 0;
         fenceListIndent = 0;
         fenceIndent = 0;
+        fenceContainerOrder = 'root';
         const blockText = currentBlock.join('\n');
         const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
         codeBlocks.push(blockText);
@@ -443,67 +539,55 @@ function protectCode(content: string, codeBlocks: string[]): string {
         continue;
       }
 
-      // 2. Check if enclosing blockquote container ended
-      // Per CommonMark §5.1, code block lines inside a blockquote must begin with a leading '>'
-      const rest = fenceInBlockquote ? getRestAfterBlockquote(line, fenceBqCount) : line;
-      if (fenceInBlockquote && rest === null) {
+      // 2. Check if enclosing container ended
+      const { rest, containerEnded } = getRestAfterFenceContainers(
+        line,
+        fenceContainerOrder,
+        fenceBqCount,
+        fenceListIndent
+      );
+
+      let ended = containerEnded;
+      if (
+        !ended &&
+        rest !== null &&
+        rest.trim() === '' &&
+        (fenceContainerOrder === 'list' ||
+          fenceContainerOrder === 'bq-list' ||
+          fenceContainerOrder === 'list-bq')
+      ) {
+        let nextNonBlank = i + 1;
+        while (nextNonBlank < lines.length) {
+          const nextCheck = getRestAfterFenceContainers(
+            lines[nextNonBlank],
+            fenceContainerOrder,
+            fenceBqCount,
+            fenceListIndent
+          );
+          if (nextCheck.containerEnded) {
+            ended = true;
+            break;
+          }
+          if (nextCheck.rest !== null && nextCheck.rest.trim() !== '') {
+            break;
+          }
+          nextNonBlank++;
+        }
+      }
+
+      if (ended) {
         inFence = false;
-        fenceInBlockquote = false;
         fenceBqCount = 0;
         fenceListIndent = 0;
         fenceIndent = 0;
+        fenceContainerOrder = 'root';
+        currentListIndent = 0;
         const blockText = currentBlock.join('\n');
         const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
         codeBlocks.push(blockText);
         resultLines.push(id);
         currentBlock = [];
         continue;
-      }
-
-      // 3. Check if enclosing list item container ended
-      if (fenceListIndent > 0 && rest !== null) {
-        let listEnded = false;
-        if (rest.trim() === '') {
-          // Lookahead for next non-blank line in the container
-          let nextNonBlank = i + 1;
-          while (nextNonBlank < lines.length) {
-            const nextRest = fenceInBlockquote
-              ? getRestAfterBlockquote(lines[nextNonBlank], fenceBqCount)
-              : lines[nextNonBlank];
-            if (nextRest === null) {
-              listEnded = true;
-              break;
-            }
-            if (nextRest.trim() !== '') {
-              const nextIndent = measureIndent(nextRest);
-              if (nextIndent < fenceListIndent) {
-                listEnded = true;
-              }
-              break;
-            }
-            nextNonBlank++;
-          }
-        } else {
-          const indent = measureIndent(rest);
-          if (indent < fenceListIndent) {
-            listEnded = true;
-          }
-        }
-
-        if (listEnded) {
-          inFence = false;
-          fenceInBlockquote = false;
-          fenceBqCount = 0;
-          fenceListIndent = 0;
-          fenceIndent = 0;
-          currentListIndent = 0;
-          const blockText = currentBlock.join('\n');
-          const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
-          codeBlocks.push(blockText);
-          resultLines.push(id);
-          currentBlock = [];
-          continue;
-        }
       }
 
       currentBlock.push(line);
@@ -590,6 +674,8 @@ function protectCode(content: string, codeBlocks: string[]): string {
       char: string;
       length: number;
       info: string;
+      containerOrder: ContainerOrder;
+      bqCount: number;
       listIndent: number;
       fenceIndent: number;
       relativeFenceIndent: number;
@@ -597,17 +683,37 @@ function protectCode(content: string, codeBlocks: string[]): string {
 
     if (listMarkerMatch) {
       const afterMarker = rest.slice(listMarkerMatch[1].length);
-      const m = afterMarker.match(/^([ \t]*)(`{3,}|~{3,})(.*)$/);
-      if (m && !(m[2][0] === '`' && m[3].includes('`'))) {
-        const indentAfterMarker = measureIndent(m[1]);
-        fenceCandidate = {
-          char: m[2][0],
-          length: m[2].length,
-          info: m[3],
-          listIndent: currentListIndent,
-          fenceIndent: indentAfterMarker,
-          relativeFenceIndent: indentAfterMarker,
-        };
+      const bqAfter = getBlockquotePrefixAndRest(afterMarker);
+      if (bqAfter.bqCount > 0) {
+        const m = bqAfter.rest.match(/^([ \t]*)(`{3,}|~{3,})(.*)$/);
+        if (m && !(m[2][0] === '`' && m[3].includes('`'))) {
+          const indentAfterBq = measureIndent(m[1]);
+          fenceCandidate = {
+            char: m[2][0],
+            length: m[2].length,
+            info: m[3],
+            containerOrder: currParsed.bqCount > 0 ? 'bq-list' : 'list-bq',
+            bqCount: currParsed.bqCount > 0 ? currParsed.bqCount : bqAfter.bqCount,
+            listIndent: currentListIndent,
+            fenceIndent: indentAfterBq,
+            relativeFenceIndent: indentAfterBq,
+          };
+        }
+      } else {
+        const m = afterMarker.match(/^([ \t]*)(`{3,}|~{3,})(.*)$/);
+        if (m && !(m[2][0] === '`' && m[3].includes('`'))) {
+          const indentAfterMarker = measureIndent(m[1]);
+          fenceCandidate = {
+            char: m[2][0],
+            length: m[2].length,
+            info: m[3],
+            containerOrder: currParsed.bqCount > 0 ? 'bq-list' : 'list',
+            bqCount: currParsed.bqCount,
+            listIndent: currentListIndent,
+            fenceIndent: indentAfterMarker,
+            relativeFenceIndent: indentAfterMarker,
+          };
+        }
       }
     } else {
       const m = rest.match(/^([ \t]*)(`{3,}|~{3,})(.*)$/);
@@ -615,10 +721,21 @@ function protectCode(content: string, codeBlocks: string[]): string {
         const indent = measureIndent(m[1]);
         const listIndent = currentListIndent;
         const relativeFenceIndent = listIndent > 0 ? Math.max(0, indent - listIndent) : indent;
+        let order: ContainerOrder = 'root';
+        if (currParsed.bqCount > 0 && listIndent > 0) {
+          order = 'list-bq';
+        } else if (currParsed.bqCount > 0) {
+          order = 'bq';
+        } else if (listIndent > 0) {
+          order = 'list';
+        }
+
         fenceCandidate = {
           char: m[2][0],
           length: m[2].length,
           info: m[3],
+          containerOrder: order,
+          bqCount: currParsed.bqCount,
           listIndent,
           fenceIndent: indent,
           relativeFenceIndent,
@@ -630,10 +747,10 @@ function protectCode(content: string, codeBlocks: string[]): string {
       inFence = true;
       fenceChar = fenceCandidate.char;
       fenceLength = fenceCandidate.length;
-      fenceBqCount = currParsed.bqCount;
-      fenceInBlockquote = currParsed.bqCount > 0;
+      fenceBqCount = fenceCandidate.bqCount;
       fenceListIndent = fenceCandidate.listIndent;
       fenceIndent = fenceCandidate.fenceIndent;
+      fenceContainerOrder = fenceCandidate.containerOrder;
       currentBlock = [line];
       i++;
       continue;
@@ -754,11 +871,12 @@ function protectCode(content: string, codeBlocks: string[]): string {
 }
 
 export function stripStarlightJsx(content: string): string {
+  const normalized = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const codeBlocks: string[] = [];
 
   // Protect fenced code blocks (tracking opening delimiter length for nested fences)
   // and inline code spans so literal code examples are preserved unchanged.
-  const protectedContent = protectCode(content, codeBlocks);
+  const protectedContent = protectCode(normalized, codeBlocks);
 
   // 1. Strip MDX import declarations
   let cleaned = protectedContent
@@ -817,7 +935,7 @@ export function generateLlmsFullTxt(docs: FullDocEntryLike[]): string {
 
   for (const doc of contentDocs) {
     const tagsStr = (doc.data.tags || []).join(', ');
-    const rawBody = doc.body ? doc.body.trim() : '';
+    const rawBody = doc.body || '';
     // Strip MDX imports and Starlight JSX components for clean LLM context injection
     const bodyStr = stripStarlightJsx(rawBody);
     const section = [
