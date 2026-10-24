@@ -341,4 +341,19 @@ Closing the outer 4-backtick block:
     false,
     'No code block placeholders must leak into final output'
   );
+
+  const inputLiveCardBetweenMixedSpans = `First \`span with \`\`double\`\` backticks\`\n\n<LinkCard title="Live Card" href="/live/" />\n\nSecond \`span with \`\`double\`\` backticks\``;
+  const outputLiveCardBetweenMixedSpans = stripStarlightJsx(inputLiveCardBetweenMixedSpans);
+  assert.ok(
+    outputLiveCardBetweenMixedSpans.includes('- [Live Card](/live/)'),
+    'Live card between two code spans containing double backticks must be serialized rather than swallowed'
+  );
+  assert.ok(
+    outputLiveCardBetweenMixedSpans.includes('First `span with ``double`` backticks`'),
+    'First code span must be preserved'
+  );
+  assert.ok(
+    outputLiveCardBetweenMixedSpans.includes('Second `span with ``double`` backticks`'),
+    'Second code span must be preserved'
+  );
 });

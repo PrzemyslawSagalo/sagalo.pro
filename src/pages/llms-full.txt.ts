@@ -53,7 +53,7 @@ function parseAttributes(attrs: string): Map<string, string> {
   return map;
 }
 
-function protectInlineCodeSpans(str: string, codeBlocks: string[], minRunLen = 1, maxRunLen = Infinity): string {
+function protectInlineCodeSpans(str: string, codeBlocks: string[]): string {
   let result = '';
   let i = 0;
   while (i < str.length) {
@@ -62,11 +62,21 @@ function protectInlineCodeSpans(str: string, codeBlocks: string[], minRunLen = 1
       while (i < str.length && str[i] === '`') i++;
       const runLen = i - runStart;
 
-      if (runLen < minRunLen || runLen > maxRunLen) {
-        result += str.slice(runStart, i);
-        continue;
+      // Check if this single backtick is a JSX attribute template expression (e.g. title={`...`})
+      if (runLen === 1 && /[a-zA-Z0-9_-]+\s*=\s*\{\s*$/.test(str.slice(0, runStart))) {
+        // Find closing backtick of template literal
+        let j = i;
+        while (j < str.length && (str[j] !== '`' || str[j - 1] === '\\')) j++;
+        if (j < str.length && str.slice(j + 1).match(/^\s*\}/)) {
+          const val = str.slice(runStart + 1, j);
+          const escaped = val.replace(/(?<!\\)"/g, '\\"');
+          result += `"${escaped}"`;
+          i = j + 1;
+          continue;
+        }
       }
 
+      // Standard CommonMark code span scanning in strict source order
       let closeStart = -1;
       let j = i;
       while (j < str.length) {
@@ -140,21 +150,11 @@ function protectCode(content: string, codeBlocks: string[]): string {
     resultLines.push(id);
   }
 
-  let fencedContent = resultLines.join('\n');
+  const fencedContent = resultLines.join('\n');
 
-  // Step 2: Protect multi-backtick Markdown code spans (length >= 2)
-  fencedContent = protectInlineCodeSpans(fencedContent, codeBlocks, 2);
-
-  // Step 3: Distinguish and normalize JSX template literal attribute expressions
-  fencedContent = fencedContent.replace(/\b([a-zA-Z0-9_-]+\s*=\s*\{\s*)`((?:[^`\\]|\\.)*)`(\s*\})/g, (_, pre, val, post) => {
-    const escaped = val.replace(/(?<!\\)"/g, '\\"');
-    return `${pre}"${escaped}"${post}`;
-  });
-
-  // Step 4: Protect 1-backtick Markdown code spans
-  const protectedContent = protectInlineCodeSpans(fencedContent, codeBlocks, 1, 1);
-
-  return protectedContent;
+  // Single pass inline code span protection in strict source order,
+  // respecting the first opening delimiter while distinguishing JSX template expressions.
+  return protectInlineCodeSpans(fencedContent, codeBlocks);
 }
 
 export function stripStarlightJsx(content: string): string {
