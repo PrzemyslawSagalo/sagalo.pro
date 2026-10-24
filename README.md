@@ -1,7 +1,7 @@
 # sagalo.pro
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Deploy Astro site to Pages](https://github.com/PrzemyslawSagalo/sagalo.pro/actions/workflows/deploy.yaml/badge.svg)](https://github.com/PrzemyslawSagalo/sagalo.pro/actions/workflows/deploy.yaml)
+[![Deploy Astro site to Pages](https://github.com/PrzemyslawSagalo/sagalo.pro/actions/workflows/deploy.yml/badge.svg)](https://github.com/PrzemyslawSagalo/sagalo.pro/actions/workflows/deploy.yml)
 
 Personal Engineering Knowledge Hub, systems architecture deep dives, and operational runbooks built with [Astro](https://astro.build/) and [Starlight](https://starlight.astro.build/), published at [sagalo.pro](https://sagalo.pro/).
 

@@ -105,6 +105,21 @@ Some regular markdown text here.
     outputJsx.includes('- [Single Quote JSX](/single/)'),
     'Must decode single-quoted JSX string expressions'
   );
+
+  const inputWithBracesInJsx = `
+<CardGrid>
+  <LinkCard
+    title={"Using {name}"}
+    href="/guide/"
+    description={"Desc with {braces}"}
+  />
+</CardGrid>
+`;
+  const outputBraces = stripStarlightJsx(inputWithBracesInJsx);
+  assert.ok(
+    outputBraces.includes('- [Using {name}](/guide/): Desc with {braces}'),
+    'Must handle closing braces inside quoted JSX expressions without breaking serialization'
+  );
 });
 
 test('Test 2: stripStarlightJsx strips <Tabs>, </Tabs>, <TabItem>, <Steps>, and <FileTree> tags while preserving tab labels', async () => {
@@ -155,6 +170,19 @@ test('Test 2: stripStarlightJsx strips <Tabs>, </Tabs>, <TabItem>, <Steps>, and 
 `;
   const outputJsxTab = stripStarlightJsx(inputWithJsxTab);
   assert.ok(outputJsxTab.includes('**Tab: JSX Tab**'), 'Must decode JSX string expression in TabItem label');
+
+  const inputWithBracesInTab = `
+<Tabs>
+  <TabItem label={"Tab with {id}"}>
+    Tab body
+  </TabItem>
+</Tabs>
+`;
+  const outputBracesTab = stripStarlightJsx(inputWithBracesInTab);
+  assert.ok(
+    outputBracesTab.includes('**Tab: Tab with {id}**'),
+    'Must handle closing braces inside TabItem JSX expressions'
+  );
 });
 
 test('Test 3: stripStarlightJsx strips MDX import declarations', async () => {

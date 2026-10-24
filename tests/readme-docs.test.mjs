@@ -43,6 +43,6 @@ test('Test 2: README.md documents LLM endpoints, Node >= 20 / npm workflows, and
   assert.match(content, /npx astro check/, 'README.md must document npx astro check');
 
   // Verify GitHub Pages deploy badge
-  assert.match(content, /deploy\.yaml\/badge\.svg/, 'README.md must include deploy.yaml badge');
-  assert.match(content, /actions\/workflows\/deploy\.yaml/, 'README.md must link to deploy.yaml workflow');
+  assert.match(content, /deploy\.yml\/badge\.svg/, 'README.md must include deploy.yml badge');
+  assert.match(content, /actions\/workflows\/deploy\.yml/, 'README.md must link to deploy.yml workflow');
 });

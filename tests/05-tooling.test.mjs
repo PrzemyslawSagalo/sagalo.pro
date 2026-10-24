@@ -60,10 +60,8 @@ test('.github/workflows/ci.yml contains Node 22 LTS setup, npm ci, npm test, and
 });
 
 test('.github/workflows/deploy.yml triggers on push to main/master and workflow_dispatch, builds with Node 22, uploads ./dist, and deploys pages', () => {
-  const deployPath = fs.existsSync(path.join(projectRoot, '.github', 'workflows', 'deploy.yml'))
-    ? path.join(projectRoot, '.github', 'workflows', 'deploy.yml')
-    : path.join(projectRoot, '.github', 'workflows', 'deploy.yaml');
-  assert.ok(fs.existsSync(deployPath), 'deploy workflow must exist');
+  const deployPath = path.join(projectRoot, '.github', 'workflows', 'deploy.yml');
+  assert.ok(fs.existsSync(deployPath), 'deploy.yml workflow must exist');
 
   const content = fs.readFileSync(deployPath, 'utf8');
 
@@ -89,8 +87,8 @@ test('.github/workflows/deploy.yml triggers on push to main/master and workflow_
   assert.match(content, /uses:\s*actions\/deploy-pages@v\d+/);
 
   // Ensure hugo and go setup are removed
-  assert.doesNotMatch(content, /actions-hugo/, 'Hugo actions must not be in deploy.yaml');
-  assert.doesNotMatch(content, /setup-go/, 'Go setup must not be in deploy.yaml');
+  assert.doesNotMatch(content, /actions-hugo/, 'Hugo actions must not be in deploy.yml');
+  assert.doesNotMatch(content, /setup-go/, 'Go setup must not be in deploy.yml');
 });
 
 test('Legacy .github/workflows/hugo.yaml is deleted', () => {

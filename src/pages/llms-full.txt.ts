@@ -11,6 +11,10 @@ export interface FullDocEntryLike {
   };
 }
 
+const JSX_EXPR_INNER = '(?:[^}"\'`]|"[^"]*"|\'[^\']*\'|`[^`]*`)*';
+const JSX_ATTR_VALUE_PATTERN = `(?:"([^"]*)"|'([^']*)'|\\{(${JSX_EXPR_INNER})\\})`;
+const TAG_ATTR_PATTERN = `(?:[^>"\'\`{}]|"[^"]*"|\'[^\']*\'|\`[^\`]*\`|\\{${JSX_EXPR_INNER}\\})*`;
+
 function decodeJsxValue(rawVal: string): string {
   const trimmed = rawVal.trim();
   const quoteMatch = trimmed.match(/^(['"`])([\s\S]*)\1$/);
@@ -27,7 +31,7 @@ function decodeJsxValue(rawVal: string): string {
 
 function parseAttributes(attrs: string): Map<string, string> {
   const map = new Map<string, string>();
-  const regex = /([a-zA-Z0-9_-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{([^}]*)\})/g;
+  const regex = new RegExp(`([a-zA-Z0-9_-]+)\\s*=\\s*${JSX_ATTR_VALUE_PATTERN}`, 'g');
   let match: RegExpExecArray | null;
   while ((match = regex.exec(attrs)) !== null) {
     const key = match[1].toLowerCase();
@@ -144,8 +148,8 @@ export function stripStarlightJsx(content: string): string {
     .replace(/^import\s*\{[\s\S]*?\}\s*from\s*['"][^'"]+['"];?\s*$/gm, '');
 
   // 2. Serialize LinkCards into Markdown links with descriptions before stripping wrapper tags.
-  // The tag matcher and tokenizer prevent quoted attribute values from masking or interfering with real attributes.
-  const linkCardRegex = /<LinkCard\b((?:[^>"'{}]|"[^"]*"|'[^']*'|\{[^}]*\})*)\/?>/gi;
+  // The tag matcher and tokenizer prevent quoted attribute values and nested JSX braces from masking or interfering with real attributes.
+  const linkCardRegex = new RegExp(`<LinkCard\\b(${TAG_ATTR_PATTERN})\\/?>`, 'gi');
   cleaned = cleaned.replace(linkCardRegex, (_, attrs) => {
     const attrMap = parseAttributes(attrs);
     const title = attrMap.get('title') || '';
@@ -161,7 +165,7 @@ export function stripStarlightJsx(content: string): string {
   });
 
   // 3. Serialize TabItem labels so tab context is preserved in LLM Markdown
-  const tabItemRegex = /<TabItem\b((?:[^>"'{}]|"[^"]*"|'[^']*'|\{[^}]*\})*)>/gi;
+  const tabItemRegex = new RegExp(`<TabItem\\b(${TAG_ATTR_PATTERN})>`, 'gi');
   cleaned = cleaned.replace(tabItemRegex, (_, attrs) => {
     const attrMap = parseAttributes(attrs);
     const label = attrMap.get('label') || '';
@@ -169,7 +173,7 @@ export function stripStarlightJsx(content: string): string {
   });
 
   // 4. Strip remaining Starlight wrapper tags (<CardGrid>, <Tabs>, <Steps>, etc.)
-  const wrapperTagsRegex = /<\/?(?:Tabs|TabItem|Steps|FileTree|CardGrid)\b(?:[^>"'{}]|"[^"]*"|'[^']*'|\{[^}]*\})*\/?>/gi;
+  const wrapperTagsRegex = new RegExp(`</?(?:Tabs|TabItem|Steps|FileTree|CardGrid)\\b(${TAG_ATTR_PATTERN})\\/?>`, 'gi');
   cleaned = cleaned
     .replace(wrapperTagsRegex, '')
     .replace(/\n{3,}/g, '\n\n')
