@@ -29,7 +29,7 @@ serve:
 preview:
 	npm run preview
 
-npm-test:
+npm-test: build
 	npm test
 
-test: lint verify npm-test build
+test: lint verify build npm-test

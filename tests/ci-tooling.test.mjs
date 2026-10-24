@@ -42,7 +42,7 @@ test('Test 2: .github/workflows/ci.yml does not contain redundant npx astro chec
   assert.equal(hasAstroCheck, false, 'Redundant "npx astro check" must be removed from build-check job');
 });
 
-test('Test 3: Makefile contains npm-test in .PHONY and test: lint verify npm-test build', () => {
+test('Test 3: Makefile contains npm-test in .PHONY, makes npm-test depend on build, and test runs build before npm-test', () => {
   const makefileContent = fs.readFileSync(makefilePath, 'utf8');
 
   assert.match(
@@ -53,14 +53,14 @@ test('Test 3: Makefile contains npm-test in .PHONY and test: lint verify npm-tes
 
   assert.match(
     makefileContent,
-    /^test:\s+lint\s+verify\s+npm-test\s+build/m,
-    'Makefile test target must execute lint verify npm-test build'
+    /^test:\s+lint\s+verify\s+build\s+npm-test/m,
+    'Makefile test target must execute lint verify build npm-test'
   );
 
   assert.match(
     makefileContent,
-    /^npm-test:\s*\n\t+npm\s+test/m,
-    'Makefile must define npm-test target running npm test'
+    /^npm-test:\s*build\s*\n\t+npm\s+test/m,
+    'Makefile must define npm-test target depending on build and running npm test'
   );
 });
 
