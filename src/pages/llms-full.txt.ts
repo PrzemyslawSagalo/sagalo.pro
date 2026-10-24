@@ -196,6 +196,14 @@ function checkClosingFence(
   if (closeChar !== fenceChar || closeLength < fenceLength) return false;
 
   const closeIndent = measureIndent(match[1]);
+
+  // If the fence opened inside a list item, the closing delimiter must retain the list item's indentation.
+  // A dedented delimiter (closeIndent < fenceListIndent) ends the list container and should be reprocessed
+  // by list-boundary logic as a potential new opener outside the list.
+  if (fenceListIndent > 0 && closeIndent < fenceListIndent) {
+    return false;
+  }
+
   // Calculate maximum closing fence indentation relative to enclosing Markdown/MDX container:
   // Root-level or blockquoted fences (0-3 spaces of initial indent) have a container base indent of 0,
   // so closing fences can never be indented 4 or more spaces per CommonMark §4.5.
@@ -215,6 +223,19 @@ function checkClosingFence(
   return true;
 }
 
+function updateMdxContainerDepth(line: string, currentDepth: number): number {
+  let depth = currentDepth;
+  const openMatches = line.matchAll(/<(Tabs|TabItem|Steps|FileTree|CardGrid)(?:\s+[^>]*)?(?<!\/)>/g);
+  for (const _ of openMatches) {
+    depth++;
+  }
+  const closeMatches = line.matchAll(/<\/(Tabs|TabItem|Steps|FileTree|CardGrid)>/g);
+  for (const _ of closeMatches) {
+    depth = Math.max(0, depth - 1);
+  }
+  return depth;
+}
+
 function protectCode(content: string, codeBlocks: string[]): string {
   const lines = content.split('\n');
   const resultLines: string[] = [];
@@ -225,6 +246,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
   let fenceBqCount = 0;
   let fenceListIndent = 0;
   let fenceIndent = 0;
+  let mdxContainerDepth = 0;
   let currentBlock: string[] = [];
 
   let i = 0;
@@ -323,32 +345,42 @@ function protectCode(content: string, codeBlocks: string[]): string {
       const info = fenceMatch[3];
       // CommonMark forbids backticks in info string of backtick fences
       if (!(char === '`' && info.includes('`'))) {
-        inFence = true;
-        fenceChar = char;
-        fenceLength = fenceMatch[2].length;
         const bqMatches = fenceMatch[1].match(/>/g);
-        fenceBqCount = bqMatches ? bqMatches.length : 0;
-        fenceInBlockquote = fenceBqCount > 0;
-        const restPrefix = fenceInBlockquote
-          ? getRestAfterBlockquote(fenceMatch[1], fenceBqCount)
+        const bqCount = bqMatches ? bqMatches.length : 0;
+        const hasBq = bqCount > 0;
+        const restPrefix = hasBq
+          ? getRestAfterBlockquote(fenceMatch[1], bqCount)
           : fenceMatch[1];
+
+        let listIndent = 0;
+        let indent = 0;
         if (restPrefix) {
           const listMarkerMatch = restPrefix.match(/^(\s*(?:[-*+]|\d+[.)])\s+)/);
           if (listMarkerMatch) {
-            fenceListIndent = measurePrefixWidth(listMarkerMatch[1]);
+            listIndent = measurePrefixWidth(listMarkerMatch[1]);
             const afterMarker = restPrefix.slice(listMarkerMatch[1].length);
-            fenceIndent = measureIndent(afterMarker);
+            indent = measureIndent(afterMarker);
           } else {
-            fenceListIndent = 0;
-            fenceIndent = measureIndent(restPrefix);
+            listIndent = 0;
+            indent = measureIndent(restPrefix);
           }
-        } else {
-          fenceListIndent = 0;
-          fenceIndent = 0;
         }
-        currentBlock = [line];
-        i++;
-        continue;
+
+        const hasContainer = hasBq || listIndent > 0 || mdxContainerDepth > 0;
+        // Per CommonMark §4.5, root-level fence openers can have at most 3 spaces of initial indent.
+        // Fences with 4 or more spaces at the root level are indented code blocks.
+        if (hasContainer || indent <= 3) {
+          inFence = true;
+          fenceChar = char;
+          fenceLength = fenceMatch[2].length;
+          fenceBqCount = bqCount;
+          fenceInBlockquote = hasBq;
+          fenceListIndent = listIndent;
+          fenceIndent = indent;
+          currentBlock = [line];
+          i++;
+          continue;
+        }
       }
     }
 
@@ -382,6 +414,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
       continue;
     }
 
+    mdxContainerDepth = updateMdxContainerDepth(line, mdxContainerDepth);
     resultLines.push(line);
     i++;
   }

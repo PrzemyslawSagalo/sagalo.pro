@@ -604,4 +604,47 @@ Closing the outer 4-backtick block:
       `Live card after ${spaces}-space opener fence must be serialized`
     );
   }
+
+  // Regression: List fence closed by dedented delimiter that starts a root-level fence
+  const inputListToRootFence = '- ~~~mdx\n  <LinkCard title="List Item Example" href="/list-ex/" />\n~~~\n<LinkCard title="Root Example" href="/root-ex/" />\n~~~\n\n<LinkCard title="Live After Transition" href="/after-trans/" />';
+  const outputListToRoot = stripStarlightJsx(inputListToRootFence);
+  assert.ok(
+    outputListToRoot.includes('<LinkCard title="List Item Example" href="/list-ex/" />'),
+    'List item example card must remain literal code'
+  );
+  assert.equal(
+    outputListToRoot.includes('- [List Item Example]'),
+    false,
+    'List item example card must not be converted to link'
+  );
+  assert.ok(
+    outputListToRoot.includes('<LinkCard title="Root Example" href="/root-ex/" />'),
+    'Root code example card must remain literal code'
+  );
+  assert.equal(
+    outputListToRoot.includes('- [Root Example]'),
+    false,
+    'Root code example card must not be converted to link'
+  );
+  assert.ok(
+    outputListToRoot.includes('- [Live After Transition](/after-trans/)'),
+    'Live card following root fence must be serialized'
+  );
+
+  // Regression: Root-level 4-space indented fence opener rejected as indented code block
+  const inputRoot4SpaceOpener = '    ~~~mdx\n    <LinkCard title="Indented Code Card" href="/indented-code/" />\n\n<LinkCard title="Live After Indented Code" href="/live-after-code/" />';
+  const outputRoot4Space = stripStarlightJsx(inputRoot4SpaceOpener);
+  assert.ok(
+    outputRoot4Space.includes('<LinkCard title="Indented Code Card" href="/indented-code/" />'),
+    'Indented code card must remain literal code'
+  );
+  assert.equal(
+    outputRoot4Space.includes('- [Indented Code Card]'),
+    false,
+    'Indented code card must not be converted to link'
+  );
+  assert.ok(
+    outputRoot4Space.includes('- [Live After Indented Code](/live-after-code/)'),
+    'Live card after 4-space indented code must be serialized'
+  );
 });
