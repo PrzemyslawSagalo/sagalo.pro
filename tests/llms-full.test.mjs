@@ -584,4 +584,24 @@ Closing the outer 4-backtick block:
     outputRootWithIndented.includes('- [Live After Indented Fence](/after-indented-fence/)'),
     'Live card after root-level fence containing indented fence must be serialized'
   );
+
+  // Regression: Root-level fence opened with 1 to 3 spaces must reject 4-space indented closing fences
+  for (const spaces of [1, 2, 3]) {
+    const indent = ' '.repeat(spaces);
+    const inputSpacedOpener = `${indent}~~~mdx\nLiteral indented fence:\n    ~~~\n<LinkCard title="Example ${spaces} Space" href="/example-${spaces}/" />\n${indent}~~~\n\n<LinkCard title="Live After ${spaces} Space" href="/after-${spaces}/" />`;
+    const outputSpacedOpener = stripStarlightJsx(inputSpacedOpener);
+    assert.ok(
+      outputSpacedOpener.includes(`<LinkCard title="Example ${spaces} Space" href="/example-${spaces}/" />`),
+      `Literal LinkCard inside fence opened with ${spaces} space(s) must remain unchanged`
+    );
+    assert.equal(
+      outputSpacedOpener.includes(`- [Example ${spaces} Space]`),
+      false,
+      `Card inside ${spaces}-space opener fence must not be converted into a markdown link`
+    );
+    assert.ok(
+      outputSpacedOpener.includes(`- [Live After ${spaces} Space](/after-${spaces}/)`),
+      `Live card after ${spaces}-space opener fence must be serialized`
+    );
+  }
 });

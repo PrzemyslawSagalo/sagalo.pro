@@ -196,9 +196,19 @@ function checkClosingFence(
   if (closeChar !== fenceChar || closeLength < fenceLength) return false;
 
   const closeIndent = measureIndent(match[1]);
-  const maxCloseIndent = fenceListIndent > 0
-    ? fenceListIndent + fenceIndent + 3
-    : fenceIndent + 3;
+  // Calculate maximum closing fence indentation relative to enclosing Markdown/MDX container:
+  // Root-level or blockquoted fences (0-3 spaces of initial indent) have a container base indent of 0,
+  // so closing fences can never be indented 4 or more spaces per CommonMark §4.5.
+  // Fences within list items use fenceListIndent, and indented MDX containers use fenceIndent (>= 4).
+  let containerBaseIndent = 0;
+  if (fenceListIndent > 0) {
+    containerBaseIndent = fenceListIndent;
+  } else if (fenceIndent >= 4) {
+    containerBaseIndent = fenceIndent;
+  } else {
+    containerBaseIndent = 0;
+  }
+  const maxCloseIndent = containerBaseIndent + 3;
 
   if (closeIndent > maxCloseIndent) return false;
 
