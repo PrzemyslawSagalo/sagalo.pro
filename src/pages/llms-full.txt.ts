@@ -11,13 +11,36 @@ export interface FullDocEntryLike {
   };
 }
 
+function decodeJsxValue(rawVal: string): string {
+  const trimmed = rawVal.trim();
+  const quoteMatch = trimmed.match(/^(['"`])([\s\S]*)\1$/);
+  if (!quoteMatch) {
+    return trimmed;
+  }
+  const quote = quoteMatch[1];
+  let unquoted = quoteMatch[2];
+  if (quote === '"' || quote === "'") {
+    unquoted = unquoted.replace(new RegExp(`\\\\${quote}`, 'g'), quote);
+  }
+  return unquoted;
+}
+
 function parseAttributes(attrs: string): Map<string, string> {
   const map = new Map<string, string>();
   const regex = /([a-zA-Z0-9_-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{([^}]*)\})/g;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(attrs)) !== null) {
     const key = match[1].toLowerCase();
-    const val = (match[2] ?? match[3] ?? match[4] ?? '').trim();
+    let val: string;
+    if (match[2] !== undefined) {
+      val = match[2];
+    } else if (match[3] !== undefined) {
+      val = match[3];
+    } else if (match[4] !== undefined) {
+      val = decodeJsxValue(match[4]);
+    } else {
+      val = '';
+    }
     if (!map.has(key)) {
       map.set(key, val);
     }
@@ -65,12 +88,45 @@ function protectCode(content: string, codeBlocks: string[]): string {
     resultLines.push(id);
   }
 
-  let protectedContent = resultLines.join('\n');
-  protectedContent = protectedContent.replace(/(`+)([\s\S]*?)\1/g, (match) => {
-    const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
-    codeBlocks.push(match);
-    return id;
-  });
+  const fencedContent = resultLines.join('\n');
+  let protectedContent = '';
+  let i = 0;
+  while (i < fencedContent.length) {
+    if (fencedContent[i] === '`') {
+      const runStart = i;
+      while (i < fencedContent.length && fencedContent[i] === '`') i++;
+      const runLen = i - runStart;
+
+      let closeStart = -1;
+      let j = i;
+      while (j < fencedContent.length) {
+        if (fencedContent[j] === '`') {
+          const cStart = j;
+          while (j < fencedContent.length && fencedContent[j] === '`') j++;
+          const cLen = j - cStart;
+          if (cLen === runLen) {
+            closeStart = cStart;
+            break;
+          }
+        } else {
+          j++;
+        }
+      }
+
+      if (closeStart !== -1) {
+        const spanText = fencedContent.slice(runStart, closeStart + runLen);
+        const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
+        codeBlocks.push(spanText);
+        protectedContent += id;
+        i = closeStart + runLen;
+      } else {
+        protectedContent += fencedContent.slice(runStart, i);
+      }
+    } else {
+      protectedContent += fencedContent[i];
+      i++;
+    }
+  }
 
   return protectedContent;
 }

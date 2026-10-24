@@ -9,6 +9,13 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const distDir = path.join(projectRoot, 'dist');
 
 test('Test 1: Production build artifacts — verify ./dist exists', () => {
+  if (!fs.existsSync(distDir) || fs.readdirSync(distDir).length === 0) {
+    execSync('npm run build', {
+      cwd: projectRoot,
+      stdio: 'pipe',
+      encoding: 'utf8',
+    });
+  }
   assert.ok(fs.existsSync(distDir), './dist directory must exist after build');
   const stat = fs.statSync(distDir);
   assert.ok(stat.isDirectory(), './dist must be a directory');

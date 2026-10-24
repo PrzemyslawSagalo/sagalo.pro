@@ -82,6 +82,29 @@ Some regular markdown text here.
     outputNested.includes("- [Real Title](/real/): Example: title='Fake Title' href='/fake/'"),
     'Must not confuse attribute-like text inside a quoted description with real attributes'
   );
+
+  const inputWithJsxExpressions = `
+<CardGrid>
+  <LinkCard
+    title={"JSX Guide"}
+    href={"/jsx-guide/"}
+    description={"Decoded expression description"}
+  />
+  <LinkCard
+    title={'Single Quote JSX'}
+    href={'/single/'}
+  />
+</CardGrid>
+`;
+  const outputJsx = stripStarlightJsx(inputWithJsxExpressions);
+  assert.ok(
+    outputJsx.includes('- [JSX Guide](/jsx-guide/): Decoded expression description'),
+    'Must decode static JSX string expressions without leaving literal quotes in markdown links'
+  );
+  assert.ok(
+    outputJsx.includes('- [Single Quote JSX](/single/)'),
+    'Must decode single-quoted JSX string expressions'
+  );
 });
 
 test('Test 2: stripStarlightJsx strips <Tabs>, </Tabs>, <TabItem>, <Steps>, and <FileTree> tags while preserving tab labels', async () => {
@@ -122,6 +145,16 @@ test('Test 2: stripStarlightJsx strips <Tabs>, </Tabs>, <TabItem>, <Steps>, and 
   assert.ok(output.includes('npm install foo'), 'Must retain inner tab content');
   assert.ok(output.includes('pnpm add foo'), 'Must retain second tab content');
   assert.ok(output.includes('Step one'), 'Must retain inner steps content');
+
+  const inputWithJsxTab = `
+<Tabs>
+  <TabItem label={"JSX Tab"}>
+    Content inside JSX tab
+  </TabItem>
+</Tabs>
+`;
+  const outputJsxTab = stripStarlightJsx(inputWithJsxTab);
+  assert.ok(outputJsxTab.includes('**Tab: JSX Tab**'), 'Must decode JSX string expression in TabItem label');
 });
 
 test('Test 3: stripStarlightJsx strips MDX import declarations', async () => {
@@ -225,5 +258,12 @@ Closing the outer 4-backtick block:
     outputNestedFences.includes('- [Nested Example]'),
     false,
     'Nested card must not be converted into a markdown list item'
+  );
+
+  const inputCodeSpanWithBackticks = 'Here is a code span with backticks: `foo``` <CardGrid>keep</CardGrid>` and trailing text.';
+  const outputCodeSpanWithBackticks = stripStarlightJsx(inputCodeSpanWithBackticks);
+  assert.ok(
+    outputCodeSpanWithBackticks.includes('`foo``` <CardGrid>keep</CardGrid>`'),
+    'Code span containing shorter or longer backtick runs must preserve literal tags'
   );
 });
