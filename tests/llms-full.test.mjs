@@ -356,4 +356,58 @@ Closing the outer 4-backtick block:
     outputLiveCardBetweenMixedSpans.includes('Second `span with ``double`` backticks`'),
     'Second code span must be preserved'
   );
+
+  // Regression: Escaped backticks should not open code spans or swallow subsequent live cards
+  const inputEscapedBackticks = 'Text with \\` escaped backtick and live card:\n\n<LinkCard title="Live Escaped" href="/live-escaped/" />\n\nAnd code span after: `<LinkCard title="Protected Code" href="/protected/" />`';
+  const outputEscapedBackticks = stripStarlightJsx(inputEscapedBackticks);
+  assert.ok(
+    outputEscapedBackticks.includes('- [Live Escaped](/live-escaped/)'),
+    'Live LinkCard after escaped backtick must be converted to markdown link'
+  );
+  assert.ok(
+    outputEscapedBackticks.includes('`<LinkCard title="Protected Code" href="/protected/" />`'),
+    'Literal LinkCard in code span after escaped backtick must remain unchanged'
+  );
+
+  // Regression: Indented code blocks (4 spaces/tabs) must preserve literal JSX examples
+  const inputIndentedCode = `Here is some text:\n\n    <LinkCard title="Indented Card" href="/indented/" />\n\nFollowed by live card:\n<LinkCard title="Live After Indented" href="/after-indented/" />`;
+  const outputIndentedCode = stripStarlightJsx(inputIndentedCode);
+  assert.ok(
+    outputIndentedCode.includes('    <LinkCard title="Indented Card" href="/indented/" />'),
+    'Indented code block must retain literal <LinkCard> tag'
+  );
+  assert.equal(
+    outputIndentedCode.includes('- [Indented Card]'),
+    false,
+    'Indented code block must not be converted into a markdown list item'
+  );
+  assert.ok(
+    outputIndentedCode.includes('- [Live After Indented](/after-indented/)'),
+    'Live card after indented code block must be serialized'
+  );
+
+  // Regression: Blockquoted code fences (> ~~~mdx) must preserve literal JSX examples
+  const inputBlockquotedFence = `> ~~~mdx\n> <LinkCard title="BqFence Card" href="/bq/" />\n> ~~~\n\n<LinkCard title="Outside Bq" href="/outside/" />`;
+  const outputBlockquotedFence = stripStarlightJsx(inputBlockquotedFence);
+  assert.ok(
+    outputBlockquotedFence.includes('> <LinkCard title="BqFence Card" href="/bq/" />'),
+    'Blockquoted code fence must retain literal <LinkCard> tag'
+  );
+  assert.equal(
+    outputBlockquotedFence.includes('- [BqFence Card]'),
+    false,
+    'Blockquoted code fence card must not be converted to markdown link'
+  );
+  assert.ok(
+    outputBlockquotedFence.includes('- [Outside Bq](/outside/)'),
+    'Live card outside blockquoted fence must be serialized'
+  );
+
+  // Regression: Single-line backtick span with backticks in info string must not be treated as fence opener
+  const inputBacktickInfoSpan = `\`\`\`foo\`\`\` inline span\n\n<LinkCard title="After Inline Span" href="/after-span/" />`;
+  const outputBacktickInfoSpan = stripStarlightJsx(inputBacktickInfoSpan);
+  assert.ok(
+    outputBacktickInfoSpan.includes('- [After Inline Span](/after-span/)'),
+    'Live card following single-line triple-backtick span must be serialized and not swallowed by false fence'
+  );
 });

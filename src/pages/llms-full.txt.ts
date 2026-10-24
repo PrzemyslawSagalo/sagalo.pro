@@ -53,11 +53,27 @@ function parseAttributes(attrs: string): Map<string, string> {
   return map;
 }
 
+function isEscaped(str: string, index: number): boolean {
+  let count = 0;
+  let p = index - 1;
+  while (p >= 0 && str[p] === '\\') {
+    count++;
+    p--;
+  }
+  return count % 2 === 1;
+}
+
 function protectInlineCodeSpans(str: string, codeBlocks: string[]): string {
   let result = '';
   let i = 0;
   while (i < str.length) {
     if (str[i] === '`') {
+      if (isEscaped(str, i)) {
+        result += '`';
+        i++;
+        continue;
+      }
+
       const runStart = i;
       while (i < str.length && str[i] === '`') i++;
       const runLen = i - runStart;
@@ -66,7 +82,7 @@ function protectInlineCodeSpans(str: string, codeBlocks: string[]): string {
       if (runLen === 1 && /[a-zA-Z0-9_-]+\s*=\s*\{\s*$/.test(str.slice(0, runStart))) {
         // Find closing backtick of template literal
         let j = i;
-        while (j < str.length && (str[j] !== '`' || str[j - 1] === '\\')) j++;
+        while (j < str.length && (str[j] !== '`' || isEscaped(str, j))) j++;
         if (j < str.length && str.slice(j + 1).match(/^\s*\}/)) {
           const val = str.slice(runStart + 1, j);
           const escaped = val.replace(/(?<!\\)"/g, '\\"');
@@ -118,21 +134,14 @@ function protectCode(content: string, codeBlocks: string[]): string {
   let fenceLength = 0;
   let currentBlock: string[] = [];
 
-  for (const line of lines) {
-    if (!inFence) {
-      const match = line.match(/^(\s*)(`{3,}|~{3,})(.*)$/);
-      if (match) {
-        inFence = true;
-        fenceChar = match[2][0];
-        fenceLength = match[2].length;
-        currentBlock = [line];
-      } else {
-        resultLines.push(line);
-      }
-    } else {
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (inFence) {
       currentBlock.push(line);
-      const closeMatch = line.match(new RegExp(`^\\s*\\${fenceChar}{${fenceLength},}\\s*$`));
-      if (closeMatch) {
+      const closeMatch = line.match(/^(?:\s*>\s*)*\s{0,3}(`{3,}|~{3,})\s*$/);
+      if (closeMatch && closeMatch[1][0] === fenceChar && closeMatch[1].length >= fenceLength) {
         inFence = false;
         const blockText = currentBlock.join('\n');
         const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
@@ -140,7 +149,58 @@ function protectCode(content: string, codeBlocks: string[]): string {
         resultLines.push(id);
         currentBlock = [];
       }
+      i++;
+      continue;
     }
+
+    // Check fenced code block opener (including blockquoted fences, e.g. > ~~~mdx or > ```mdx)
+    const fenceMatch = line.match(/^((?:\s*>\s*)*\s{0,3})(`{3,}|~{3,})(.*)$/);
+    if (fenceMatch) {
+      const char = fenceMatch[2][0];
+      const info = fenceMatch[3];
+      // CommonMark forbids backticks in info string of backtick fences
+      if (!(char === '`' && info.includes('`'))) {
+        inFence = true;
+        fenceChar = char;
+        fenceLength = fenceMatch[2].length;
+        currentBlock = [line];
+        i++;
+        continue;
+      }
+    }
+
+    // Check indented code block: preceded by blank line (or start of doc)
+    const prevBlank = (i === 0 || lines[i - 1].trim() === '');
+    if (prevBlank && /^(?: {4}|\t)/.test(line)) {
+      const indentedBlock = [];
+      while (i < lines.length) {
+        if (/^(?: {4}|\t)/.test(lines[i])) {
+          indentedBlock.push(lines[i]);
+          i++;
+        } else if (lines[i].trim() === '') {
+          let nextNonBlank = i + 1;
+          while (nextNonBlank < lines.length && lines[nextNonBlank].trim() === '') {
+            nextNonBlank++;
+          }
+          if (nextNonBlank < lines.length && /^(?: {4}|\t)/.test(lines[nextNonBlank])) {
+            indentedBlock.push(lines[i]);
+            i++;
+          } else {
+            break;
+          }
+        } else {
+          break;
+        }
+      }
+      const blockText = indentedBlock.join('\n');
+      const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
+      codeBlocks.push(blockText);
+      resultLines.push(id);
+      continue;
+    }
+
+    resultLines.push(line);
+    i++;
   }
 
   if (inFence) {
