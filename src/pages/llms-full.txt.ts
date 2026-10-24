@@ -12,7 +12,7 @@ export interface FullDocEntryLike {
 }
 
 function getAttribute(attrs: string, name: string): string {
-  const match = attrs.match(new RegExp(`\\b${name}=(?:"([^"]*)"|'([^']*)'|\\{([^}]*)\\})`, 'i'));
+  const match = attrs.match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|\\{([^}]*)\\})`, 'i'));
   if (!match) return '';
   return (match[1] ?? match[2] ?? match[3] ?? '').trim();
 }

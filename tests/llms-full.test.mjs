@@ -74,7 +74,7 @@ test('Test 2: stripStarlightJsx strips <Tabs>, </Tabs>, <TabItem>, <Steps>, and 
 
   const input = `
 <Tabs>
-  <TabItem label="npm">
+  <TabItem aria-label="Accessible name" label="npm">
     npm install foo
   </TabItem>
   <TabItem label="pnpm (Fast & Efficient)">
@@ -103,6 +103,7 @@ test('Test 2: stripStarlightJsx strips <Tabs>, </Tabs>, <TabItem>, <Steps>, and 
   assert.equal(output.includes('</FileTree>'), false);
   assert.ok(output.includes('**Tab: npm**'), 'Must preserve simple TabItem label as Markdown heading');
   assert.ok(output.includes('**Tab: pnpm (Fast & Efficient)**'), 'Must preserve TabItem label with parentheses');
+  assert.ok(!output.includes('**Tab: Accessible name**'), 'Must not mistake aria-label for label');
   assert.ok(output.includes('npm install foo'), 'Must retain inner tab content');
   assert.ok(output.includes('pnpm add foo'), 'Must retain second tab content');
   assert.ok(output.includes('Step one'), 'Must retain inner steps content');
