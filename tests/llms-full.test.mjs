@@ -464,6 +464,18 @@ Closing the outer 4-backtick block:
     'Live card outside blockquote must be serialized even if blockquote fence had no closing delimiter'
   );
 
+  // Regression: Unclosed blockquoted fence immediately followed by unquoted LinkCard without blank line
+  const inputUnclosedBqAdjacent = '> ~~~mdx\n> <LinkCard title="Bq Example Card" href="/bq-example/" />\n<LinkCard title="Outside" href="/outside/" />';
+  const outputUnclosedBqAdjacent = stripStarlightJsx(inputUnclosedBqAdjacent);
+  assert.ok(
+    outputUnclosedBqAdjacent.includes('<LinkCard title="Bq Example Card" href="/bq-example/" />'),
+    'Literal LinkCard in blockquoted fence must remain unchanged'
+  );
+  assert.ok(
+    outputUnclosedBqAdjacent.includes('- [Outside](/outside/)'),
+    'Adjacent unquoted live card immediately after unclosed blockquote fence must be serialized'
+  );
+
   // Regression: Fenced code blocks inside list items (- ~~~mdx or 1. ```mdx)
   const inputListFence = '- ~~~mdx\n  <LinkCard title="List Item Example" href="/list-example/" />\n  ~~~\n\n<LinkCard title="Live After List" href="/after-list/" />';
   const outputListFence = stripStarlightJsx(inputListFence);
@@ -479,5 +491,34 @@ Closing the outer 4-backtick block:
   assert.ok(
     outputListFence.includes('- [Live After List](/after-list/)'),
     'Live card after list item fence must be serialized'
+  );
+
+  // Regression: Unclosed list-item fence with blank line followed by unindented live card
+  const inputUnclosedListWithBlank = '- ~~~mdx\n  <LinkCard title="List Item Example" href="/list-example/" />\n\n<LinkCard title="Live After List" href="/after-list/" />';
+  const outputUnclosedListWithBlank = stripStarlightJsx(inputUnclosedListWithBlank);
+  assert.ok(
+    outputUnclosedListWithBlank.includes('<LinkCard title="List Item Example" href="/list-example/" />'),
+    'Literal LinkCard in unclosed list fence must remain unchanged'
+  );
+  assert.equal(
+    outputUnclosedListWithBlank.includes('- [List Item Example]'),
+    false,
+    'List item fence card must not be converted into a markdown link'
+  );
+  assert.ok(
+    outputUnclosedListWithBlank.includes('- [Live After List](/after-list/)'),
+    'Live card after unclosed list fence with blank line must be serialized'
+  );
+
+  // Regression: Unclosed list-item fence immediately followed by unindented live card without blank line
+  const inputUnclosedListAdjacent = '- ~~~mdx\n  <LinkCard title="List Item Example" href="/list-example/" />\n<LinkCard title="Live Adjacent List" href="/adjacent-list/" />';
+  const outputUnclosedListAdjacent = stripStarlightJsx(inputUnclosedListAdjacent);
+  assert.ok(
+    outputUnclosedListAdjacent.includes('<LinkCard title="List Item Example" href="/list-example/" />'),
+    'Literal LinkCard in unclosed list fence must remain unchanged'
+  );
+  assert.ok(
+    outputUnclosedListAdjacent.includes('- [Live Adjacent List](/adjacent-list/)'),
+    'Live card immediately adjacent to unclosed list fence must be serialized'
   );
 });
