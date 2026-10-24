@@ -85,5 +85,6 @@ conda config --get channels
 
 ## Reference Guides & Cheat Sheets
 
-> [!TIP]
-> **Offline Reference**: A comprehensive [Python AsyncIO Cheat Sheet (PDF)](/docs/python-asyncio.pdf) is available for offline download.
+:::tip
+**Offline Reference**: A comprehensive [Python AsyncIO Cheat Sheet (PDF)](/docs/python-asyncio.pdf) is available for offline download.
+:::

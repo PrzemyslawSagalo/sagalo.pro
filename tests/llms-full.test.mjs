@@ -1,0 +1,118 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { register } from 'node:module';
+
+const loaderCode = `
+export async function resolve(specifier, context, nextResolve) {
+  if (specifier === 'astro:content') {
+    return {
+      url: 'data:text/javascript,' + encodeURIComponent('export function getCollection() { return []; }'),
+      shortCircuit: true,
+      format: 'module',
+    };
+  }
+  if (specifier === './llms.txt') {
+    return {
+      url: new URL('./llms.txt.ts', context.parentURL).href,
+      shortCircuit: true,
+    };
+  }
+  return nextResolve(specifier, context);
+}
+`;
+register('data:text/javascript,' + encodeURIComponent(loaderCode), { parentURL: import.meta.url });
+
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const llmsFullTsPath = path.join(projectRoot, 'src/pages/llms-full.txt.ts');
+
+test('Test 1: stripStarlightJsx strips single-line and multiline <CardGrid>, </CardGrid>, <LinkCard ... /> without removing inner text', async () => {
+  const { stripStarlightJsx } = await import(`file://${llmsFullTsPath}`);
+  assert.equal(typeof stripStarlightJsx, 'function', 'stripStarlightJsx must be exported');
+
+  const input = `
+<CardGrid>
+  <LinkCard
+    title="Git Workflows"
+    href="/runbooks/git/workflows/"
+    description="Multi-branch sync, detached HEAD recovery, and commit audits."
+  />
+</CardGrid>
+Some regular markdown text here.
+`;
+
+  const output = stripStarlightJsx(input);
+  assert.equal(output.includes('<CardGrid>'), false, 'Should strip opening <CardGrid>');
+  assert.equal(output.includes('</CardGrid>'), false, 'Should strip closing </CardGrid>');
+  assert.equal(output.includes('<LinkCard'), false, 'Should strip multiline <LinkCard>');
+  assert.ok(output.includes('Some regular markdown text here.'), 'Must preserve regular text');
+});
+
+test('Test 2: stripStarlightJsx strips <Tabs>, </Tabs>, <TabItem>, <Steps>, and <FileTree> tags', async () => {
+  const { stripStarlightJsx } = await import(`file://${llmsFullTsPath}`);
+
+  const input = `
+<Tabs>
+  <TabItem label="npm">
+    npm install foo
+  </TabItem>
+</Tabs>
+
+<Steps>
+1. Step one
+2. Step two
+</Steps>
+
+<FileTree>
+- astro.config.mjs
+</FileTree>
+`;
+
+  const output = stripStarlightJsx(input);
+  assert.equal(output.includes('<Tabs>'), false);
+  assert.equal(output.includes('</Tabs>'), false);
+  assert.equal(output.includes('<TabItem'), false);
+  assert.equal(output.includes('</TabItem>'), false);
+  assert.equal(output.includes('<Steps>'), false);
+  assert.equal(output.includes('</Steps>'), false);
+  assert.equal(output.includes('<FileTree>'), false);
+  assert.equal(output.includes('</FileTree>'), false);
+  assert.ok(output.includes('npm install foo'), 'Must retain inner tab content');
+  assert.ok(output.includes('Step one'), 'Must retain inner steps content');
+});
+
+test('Test 3: stripStarlightJsx strips MDX import declarations', async () => {
+  const { stripStarlightJsx } = await import(`file://${llmsFullTsPath}`);
+
+  const input = `
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+import Something from './Something.astro';
+
+# Document Header
+
+Content goes here.
+`;
+
+  const output = stripStarlightJsx(input);
+  assert.equal(output.includes('import { CardGrid'), false, 'Must strip curly import');
+  assert.equal(output.includes('import Something'), false, 'Must strip default import');
+  assert.ok(output.includes('# Document Header'), 'Must preserve markdown headings');
+  assert.ok(output.includes('Content goes here.'), 'Must preserve markdown body');
+});
+
+test('Test 4: src/pages/llms-full.txt.ts imports getCanonicalUrl from "./llms.txt" without .ts extension', () => {
+  const fileContent = fs.readFileSync(llmsFullTsPath, 'utf8');
+
+  assert.match(
+    fileContent,
+    /import\s*\{\s*getCanonicalUrl\s*\}\s*from\s*['"]\.\/llms\.txt['"];?/,
+    'src/pages/llms-full.txt.ts must import getCanonicalUrl from "./llms.txt"'
+  );
+  assert.equal(
+    fileContent.includes("from './llms.txt.ts'"),
+    false,
+    'Must not import from "./llms.txt.ts"'
+  );
+});

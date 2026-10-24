@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
-import { getCanonicalUrl } from './llms.txt.ts';
+import { getCanonicalUrl } from './llms.txt';
 
 export interface FullDocEntryLike {
   id: string;
@@ -9,6 +9,15 @@ export interface FullDocEntryLike {
     title: string;
     tags?: string[];
   };
+}
+
+export function stripStarlightJsx(content: string): string {
+  return content
+    .replace(/^import\s+[^;\n]+;\s*$/gm, '')
+    .replace(/^import\s*\{[\s\S]*?\}\s*from\s*['"][^'"]+['"];?\s*$/gm, '')
+    .replace(/<\/?(?:Tabs|TabItem|Steps|FileTree|CardGrid|LinkCard)(?:\s+[\s\S]*?)?\/?>/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 export function generateLlmsFullTxt(docs: FullDocEntryLike[]): string {
@@ -23,11 +32,8 @@ export function generateLlmsFullTxt(docs: FullDocEntryLike[]): string {
   for (const doc of contentDocs) {
     const tagsStr = (doc.data.tags || []).join(', ');
     const rawBody = doc.body ? doc.body.trim() : '';
-    // Strip MDX import declarations so plaintext corpus remains clean for LLM context injection
-    const bodyStr = rawBody
-      .replace(/^import\s+[^;\n]+;\s*$/gm, '')
-      .replace(/^import\s*\{[\s\S]*?\}\s*from\s*['"][^'"]+['"];?\s*$/gm, '')
-      .trim();
+    // Strip MDX imports and Starlight JSX components for clean LLM context injection
+    const bodyStr = stripStarlightJsx(rawBody);
     const section = [
       '---',
       '',

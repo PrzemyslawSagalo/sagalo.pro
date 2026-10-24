@@ -215,7 +215,7 @@ test('Test 4: Verify deep-dives/index.mdx and runbooks/index.mdx exist (and .md 
   );
 
   const expectedRunbookLinks = [
-    '/runbooks/git/',
+    '/runbooks/git/workflows/',
     '/runbooks/containers/',
     '/runbooks/ai-coding-assistants/',
     '/runbooks/daily-toolkit/',

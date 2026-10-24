@@ -1,0 +1,39 @@
+---
+title: Python
+description: "Python foundational principles, runtime execution model, and deep dive catalog."
+sidebar:
+  order: 0
+tags:
+  - python
+  - architecture
+  - internals
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Technical guides covering Python internals, concurrency models, argument passing performance, and testing strategies.
+
+## Python Deep Dives Catalog
+
+<CardGrid>
+  <LinkCard
+    title="Python Concurrency"
+    href="/deep-dives/python/concurrency/"
+    description="Asyncio event loops, cooperative multitasking, task cancellation, and structured concurrency patterns."
+  />
+  <LinkCard
+    title="Python Environments"
+    href="/deep-dives/python/environments/"
+    description="Hermetic virtual environments, uv, pipx, dependency isolation, and packaging standards."
+  />
+  <LinkCard
+    title="Python Functions & Scope"
+    href="/deep-dives/python/functions/"
+    description="LEGB scope lookup, closures, decorators, parameter passing semantics, and namespace mechanics."
+  />
+  <LinkCard
+    title="Python Testing & Quality"
+    href="/deep-dives/python/tests/"
+    description="Pytest patterns, fixture scopes, parametrization, and isolation testing techniques."
+  />
+</CardGrid>

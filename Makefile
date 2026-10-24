@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help lint verify build serve preview test
+.PHONY: help lint verify build serve preview test npm-test
 
 help:
 	@echo "Available commands:"
@@ -10,7 +10,8 @@ help:
 	@echo "  make build    - Build site with Astro (npm run build)"
 	@echo "  make serve    - Run local Astro dev server (npm run dev)"
 	@echo "  make preview  - Preview production build locally (npm run preview)"
-	@echo "  make test     - Run all quality checks (lint + verify + build)"
+	@echo "  make npm-test - Run automated unit tests (npm test)"
+	@echo "  make test     - Run all quality checks (lint + verify + npm-test + build)"
 
 lint:
 	pre-commit run --all-files
@@ -27,4 +28,7 @@ serve:
 preview:
 	npm run preview
 
-test: lint verify build
+npm-test:
+	npm test
+
+test: lint verify npm-test build

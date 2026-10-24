@@ -1,16 +1,11 @@
-/* Inter Fontsource Imports */
-@import '@fontsource/inter/latin-300.css';
-@import '@fontsource/inter/latin-400.css';
-@import '@fontsource/inter/latin-500.css';
-@import '@fontsource/inter/latin-600.css';
-@import '@fontsource/inter/latin-700.css';
-@import '@fontsource/inter/latin-800.css';
+/* Inter Variable Fontsource Import */
+@import '@fontsource-variable/inter';
 
 /* ==========================================================================
    Institutional Dark Tokens & Global Theme Overrides
    ========================================================================== */
 :root {
-  color-scheme: dark !important;
+  color-scheme: dark;
 
   /* Institutional Palette */
   --theme-bg-dark: #0b0f19;
@@ -35,21 +30,21 @@
   --sl-color-text: var(--theme-text-main);
   --sl-color-text-accent: var(--theme-accent-cyan);
   --sl-color-white: #ffffff;
-  --sl-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --sl-font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 html, body {
-  color-scheme: dark !important;
-  background-color: var(--theme-bg-dark) !important;
-  font-family: var(--sl-font-family) !important;
+  color-scheme: dark;
+  background-color: var(--theme-bg-dark);
+  font-family: var(--sl-font-family);
 }
 
 body {
   background-image:
     radial-gradient(circle at 20% 0%, rgba(56, 189, 248, 0.05), transparent 45%),
-    radial-gradient(circle at 80% 100%, rgba(16, 185, 129, 0.04), transparent 45%) !important;
-  background-attachment: fixed !important;
-  color: var(--theme-text-main) !important;
+    radial-gradient(circle at 80% 100%, rgba(16, 185, 129, 0.04), transparent 45%);
+  background-attachment: fixed;
+  color: var(--theme-text-main);
   -webkit-font-smoothing: antialiased;
 }
 

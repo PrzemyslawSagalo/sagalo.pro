@@ -36,18 +36,19 @@ test('package.json contains required scripts and dependencies', () => {
   assert.equal(pkg.scripts.check, 'astro check');
 
   assert.ok(pkg.dependencies, 'package.json must have dependencies');
+  const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
   const requiredDeps = [
     'astro',
     '@astrojs/starlight',
     '@astrojs/mdx',
-    '@fontsource/inter',
-    '@astrojs/check',
-    'sharp',
-    'typescript'
+    'sharp'
   ];
   for (const dep of requiredDeps) {
-    assert.ok(pkg.dependencies[dep], `package.json must include ${dep}`);
+    assert.ok(pkg.dependencies[dep], `package.json must include runtime dependency ${dep}`);
   }
+  assert.ok(allDeps['@fontsource-variable/inter'] || allDeps['@fontsource/inter'], 'package.json must include inter font');
+  assert.ok(allDeps['@astrojs/check'], 'package.json must include @astrojs/check');
+  assert.ok(allDeps['typescript'], 'package.json must include typescript');
 });
 
 test('astro.config.mjs exports output: static, trailingSlash: always, site URL, and Starlight integration', async () => {
