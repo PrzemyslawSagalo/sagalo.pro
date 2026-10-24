@@ -93,10 +93,18 @@ function protectInlineCodeSpans(str: string, codeBlocks: string[]): string {
       }
 
       // Standard CommonMark code span scanning in strict source order
+      // CommonMark: code spans cannot cross paragraph boundaries (blank lines).
       let closeStart = -1;
       let j = i;
       while (j < str.length) {
-        if (str[j] === '`') {
+        if (str[j] === '\n') {
+          let k = j + 1;
+          while (k < str.length && (str[k] === ' ' || str[k] === '\t' || str[k] === '\r')) k++;
+          if (k < str.length && str[k] === '\n') {
+            break;
+          }
+          j++;
+        } else if (str[j] === '`') {
           const cStart = j;
           while (j < str.length && str[j] === '`') j++;
           const cLen = j - cStart;
@@ -132,6 +140,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
   let inFence = false;
   let fenceChar = '';
   let fenceLength = 0;
+  let fenceInBlockquote = false;
   let currentBlock: string[] = [];
 
   let i = 0;
@@ -139,10 +148,22 @@ function protectCode(content: string, codeBlocks: string[]): string {
     const line = lines[i];
 
     if (inFence) {
+      if (fenceInBlockquote && !line.includes('>')) {
+        inFence = false;
+        fenceInBlockquote = false;
+        const blockText = currentBlock.join('\n');
+        const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
+        codeBlocks.push(blockText);
+        resultLines.push(id);
+        currentBlock = [];
+        continue;
+      }
+
       currentBlock.push(line);
       const closeMatch = line.match(/^(?:\s*>\s*)*\s*(`{3,}|~{3,})\s*$/);
       if (closeMatch && closeMatch[1][0] === fenceChar && closeMatch[1].length >= fenceLength) {
         inFence = false;
+        fenceInBlockquote = false;
         const blockText = currentBlock.join('\n');
         const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
         codeBlocks.push(blockText);
@@ -153,8 +174,8 @@ function protectCode(content: string, codeBlocks: string[]): string {
       continue;
     }
 
-    // Check fenced code block opener (including blockquoted or indented fences in MDX containers)
-    const fenceMatch = line.match(/^((?:\s*>\s*)*\s*)(`{3,}|~{3,})(.*)$/);
+    // Check fenced code block opener (including blockquoted, list-item, or indented fences in MDX containers)
+    const fenceMatch = line.match(/^((?:\s*>\s*)*(?:\s*(?:[-*+]|\d+[.)])\s+)?\s*)(`{3,}|~{3,})(.*)$/);
     if (fenceMatch) {
       const char = fenceMatch[2][0];
       const info = fenceMatch[3];
@@ -163,6 +184,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
         inFence = true;
         fenceChar = char;
         fenceLength = fenceMatch[2].length;
+        fenceInBlockquote = fenceMatch[1].includes('>');
         currentBlock = [line];
         i++;
         continue;

@@ -443,4 +443,41 @@ Closing the outer 4-backtick block:
     outputBacktickInfoSpan.includes('- [After Inline Span](/after-span/)'),
     'Live card following single-line triple-backtick span must be serialized and not swallowed by false fence'
   );
+
+  // Regression: Code spans must not match across Markdown paragraphs (blank lines)
+  const inputParaBoundary = 'Paragraph one with ` unmatched backtick.\n\n<LinkCard title="Intervening Card" href="/intervening/" />\n\nParagraph two with ` unmatched backtick.';
+  const outputParaBoundary = stripStarlightJsx(inputParaBoundary);
+  assert.ok(
+    outputParaBoundary.includes('- [Intervening Card](/intervening/)'),
+    'Live LinkCard between paragraphs with unmatched backticks must be serialized'
+  );
+
+  // Regression: Unclosed fenced code block inside blockquote must end when blockquote ends
+  const inputUnclosedBqFence = '> ~~~mdx\n> <LinkCard title="Bq Example Card" href="/bq-example/" />\n\n<LinkCard title="Live Outside Blockquote" href="/outside-bq/" />';
+  const outputUnclosedBqFence = stripStarlightJsx(inputUnclosedBqFence);
+  assert.ok(
+    outputUnclosedBqFence.includes('<LinkCard title="Bq Example Card" href="/bq-example/" />'),
+    'Literal LinkCard in blockquoted fence must remain unchanged'
+  );
+  assert.ok(
+    outputUnclosedBqFence.includes('- [Live Outside Blockquote](/outside-bq/)'),
+    'Live card outside blockquote must be serialized even if blockquote fence had no closing delimiter'
+  );
+
+  // Regression: Fenced code blocks inside list items (- ~~~mdx or 1. ```mdx)
+  const inputListFence = '- ~~~mdx\n  <LinkCard title="List Item Example" href="/list-example/" />\n  ~~~\n\n<LinkCard title="Live After List" href="/after-list/" />';
+  const outputListFence = stripStarlightJsx(inputListFence);
+  assert.ok(
+    outputListFence.includes('<LinkCard title="List Item Example" href="/list-example/" />'),
+    'Literal LinkCard in list item fence must remain unchanged'
+  );
+  assert.equal(
+    outputListFence.includes('- [List Item Example]'),
+    false,
+    'List item fence card must not be converted into a markdown link'
+  );
+  assert.ok(
+    outputListFence.includes('- [Live After List](/after-list/)'),
+    'Live card after list item fence must be serialized'
+  );
 });
