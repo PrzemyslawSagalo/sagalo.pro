@@ -134,24 +134,40 @@ function protectInlineCodeSpans(str: string, codeBlocks: string[]): string {
   return result;
 }
 
-function getLineIndent(line: string, inBlockquote: boolean): number {
-  let rest = line;
-  if (inBlockquote) {
-    const bqMatch = rest.match(/^\s*>\s*/);
-    if (!bqMatch) return -1;
-    rest = rest.slice(bqMatch[0].length);
-  }
+function measureIndent(str: string): number {
   let indent = 0;
-  for (let idx = 0; idx < rest.length; idx++) {
-    if (rest[idx] === ' ') {
+  for (let idx = 0; idx < str.length; idx++) {
+    if (str[idx] === ' ') {
       indent += 1;
-    } else if (rest[idx] === '\t') {
+    } else if (str[idx] === '\t') {
       indent += 4 - (indent % 4);
     } else {
       break;
     }
   }
   return indent;
+}
+
+function measurePrefixWidth(str: string): number {
+  let width = 0;
+  for (let idx = 0; idx < str.length; idx++) {
+    if (str[idx] === '\t') {
+      width += 4 - (width % 4);
+    } else {
+      width += 1;
+    }
+  }
+  return width;
+}
+
+function getRestAfterBlockquote(line: string, bqCount: number): string | null {
+  let rest = line;
+  for (let b = 0; b < bqCount; b++) {
+    const bqMatch = rest.match(/^\s*>[ \t]?/);
+    if (!bqMatch) return null;
+    rest = rest.slice(bqMatch[0].length);
+  }
+  return rest;
 }
 
 function protectCode(content: string, codeBlocks: string[]): string {
@@ -161,6 +177,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
   let fenceChar = '';
   let fenceLength = 0;
   let fenceInBlockquote = false;
+  let fenceBqCount = 0;
   let fenceListIndent = 0;
   let currentBlock: string[] = [];
 
@@ -170,11 +187,12 @@ function protectCode(content: string, codeBlocks: string[]): string {
 
     if (inFence) {
       // 1. Check if this line is a closing fence delimiter
-      const closeMatch = line.match(/^(?:\s*>\s*)*\s*(`{3,}|~{3,})\s*$/);
+      const closeMatch = line.match(/^(?:\s*>[ \t]?)*\s*(`{3,}|~{3,})\s*$/);
       if (closeMatch && closeMatch[1][0] === fenceChar && closeMatch[1].length >= fenceLength) {
         currentBlock.push(line);
         inFence = false;
         fenceInBlockquote = false;
+        fenceBqCount = 0;
         fenceListIndent = 0;
         const blockText = currentBlock.join('\n');
         const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
@@ -185,11 +203,13 @@ function protectCode(content: string, codeBlocks: string[]): string {
         continue;
       }
 
-      // 2. Check if blockquote container ended
+      // 2. Check if enclosing blockquote container ended
       // Per CommonMark §5.1, code block lines inside a blockquote must begin with a leading '>'
-      if (fenceInBlockquote && !/^\s*>/.test(line)) {
+      const rest = fenceInBlockquote ? getRestAfterBlockquote(line, fenceBqCount) : line;
+      if (fenceInBlockquote && rest === null) {
         inFence = false;
         fenceInBlockquote = false;
+        fenceBqCount = 0;
         fenceListIndent = 0;
         const blockText = currentBlock.join('\n');
         const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
@@ -199,24 +219,31 @@ function protectCode(content: string, codeBlocks: string[]): string {
         continue;
       }
 
-      // 3. Check if list item container ended
-      if (fenceListIndent > 0) {
+      // 3. Check if enclosing list item container ended
+      if (fenceListIndent > 0 && rest !== null) {
         let listEnded = false;
-        if (line.trim() === '') {
-          // Lookahead for next non-blank line
+        if (rest.trim() === '') {
+          // Lookahead for next non-blank line in the container
           let nextNonBlank = i + 1;
-          while (nextNonBlank < lines.length && lines[nextNonBlank].trim() === '') {
+          while (nextNonBlank < lines.length) {
+            const nextRest = fenceInBlockquote
+              ? getRestAfterBlockquote(lines[nextNonBlank], fenceBqCount)
+              : lines[nextNonBlank];
+            if (nextRest === null) {
+              listEnded = true;
+              break;
+            }
+            if (nextRest.trim() !== '') {
+              const nextIndent = measureIndent(nextRest);
+              if (nextIndent < fenceListIndent) {
+                listEnded = true;
+              }
+              break;
+            }
             nextNonBlank++;
           }
-          if (nextNonBlank < lines.length) {
-            const nextLine = lines[nextNonBlank];
-            const nextIndent = getLineIndent(nextLine, fenceInBlockquote);
-            if (nextIndent < fenceListIndent) {
-              listEnded = true;
-            }
-          }
         } else {
-          const indent = getLineIndent(line, fenceInBlockquote);
+          const indent = measureIndent(rest);
           if (indent < fenceListIndent) {
             listEnded = true;
           }
@@ -225,6 +252,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
         if (listEnded) {
           inFence = false;
           fenceInBlockquote = false;
+          fenceBqCount = 0;
           fenceListIndent = 0;
           const blockText = currentBlock.join('\n');
           const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
@@ -241,7 +269,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
     }
 
     // Check fenced code block opener (including blockquoted, list-item, or indented fences in MDX containers)
-    const fenceMatch = line.match(/^((?:\s*>\s*)*(?:\s*(?:[-*+]|\d+[.)])\s+)?\s*)(`{3,}|~{3,})(.*)$/);
+    const fenceMatch = line.match(/^((?:\s*>[ \t]?)*(?:\s*(?:[-*+]|\d+[.)])\s+)?\s*)(`{3,}|~{3,})(.*)$/);
     if (fenceMatch) {
       const char = fenceMatch[2][0];
       const info = fenceMatch[3];
@@ -250,19 +278,17 @@ function protectCode(content: string, codeBlocks: string[]): string {
         inFence = true;
         fenceChar = char;
         fenceLength = fenceMatch[2].length;
-        fenceInBlockquote = /^\s*>/.test(fenceMatch[1]);
-        const listMarkerMatch = fenceMatch[1].match(/^((?:\s*>\s*)*)(\s*(?:[-*+]|\d+[.)])\s+)/);
+        const bqMatches = fenceMatch[1].match(/>/g);
+        fenceBqCount = bqMatches ? bqMatches.length : 0;
+        fenceInBlockquote = fenceBqCount > 0;
+        const restPrefix = fenceInBlockquote
+          ? getRestAfterBlockquote(fenceMatch[1], fenceBqCount)
+          : fenceMatch[1];
+        const listMarkerMatch = restPrefix
+          ? restPrefix.match(/^(\s*(?:[-*+]|\d+[.)])\s+)/)
+          : null;
         if (listMarkerMatch) {
-          let indent = 0;
-          const listPrefix = listMarkerMatch[2];
-          for (let idx = 0; idx < listPrefix.length; idx++) {
-            if (listPrefix[idx] === '\t') {
-              indent += 4 - (indent % 4);
-            } else {
-              indent += 1;
-            }
-          }
-          fenceListIndent = indent;
+          fenceListIndent = measurePrefixWidth(listMarkerMatch[1]);
         } else {
           fenceListIndent = 0;
         }

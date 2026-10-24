@@ -521,4 +521,33 @@ Closing the outer 4-backtick block:
     outputUnclosedListAdjacent.includes('- [Live Adjacent List](/adjacent-list/)'),
     'Live card immediately adjacent to unclosed list fence must be serialized'
   );
+
+  // Regression: Blockquoted list fences (> - ~~~mdx) combining blockquotes with list containers
+  const inputBqListFence = '> - ~~~mdx\n>   <LinkCard title="Bq List Example" href="/bq-list/" />\n>   ~~~\n\n<LinkCard title="Live After Bq List" href="/after-bq-list/" />';
+  const outputBqListFence = stripStarlightJsx(inputBqListFence);
+  assert.ok(
+    outputBqListFence.includes('<LinkCard title="Bq List Example" href="/bq-list/" />'),
+    'Literal LinkCard in blockquoted list fence must remain unchanged'
+  );
+  assert.equal(
+    outputBqListFence.includes('- [Bq List Example]'),
+    false,
+    'Blockquoted list fence card must not be converted into a markdown link'
+  );
+  assert.ok(
+    outputBqListFence.includes('- [Live After Bq List](/after-bq-list/)'),
+    'Live card after blockquoted list fence must be serialized'
+  );
+
+  // Regression: Unclosed blockquoted list fence followed by live card outside blockquote
+  const inputUnclosedBqListFence = '> - ~~~mdx\n>   <LinkCard title="Unclosed Bq List Example" href="/unclosed-bq-list/" />\n\n<LinkCard title="Live Outside Bq List" href="/outside-bq-list/" />';
+  const outputUnclosedBqList = stripStarlightJsx(inputUnclosedBqListFence);
+  assert.ok(
+    outputUnclosedBqList.includes('<LinkCard title="Unclosed Bq List Example" href="/unclosed-bq-list/" />'),
+    'Literal LinkCard in unclosed blockquoted list fence must remain unchanged'
+  );
+  assert.ok(
+    outputUnclosedBqList.includes('- [Live Outside Bq List](/outside-bq-list/)'),
+    'Live card outside blockquote must be serialized when blockquoted list fence is unclosed'
+  );
 });
