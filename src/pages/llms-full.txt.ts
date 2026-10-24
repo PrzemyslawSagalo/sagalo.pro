@@ -313,18 +313,98 @@ function checkClosingFence(
   return true;
 }
 
-function updateMdxContainerDepth(line: string, currentDepth: number): number {
+interface MdxContainerState {
+  depth: number;
+  openTagName: string | null;
+}
+
+function updateMdxContainerState(line: string, state: MdxContainerState): void {
   const cleanLine = stripInlineCodeSpans(line);
-  let depth = currentDepth;
-  const openMatches = cleanLine.matchAll(/<(Tabs|TabItem|Steps|FileTree|CardGrid)(?:\s+[^>]*)?(?<!\/)>/g);
-  for (const _ of openMatches) {
-    depth++;
+  let idx = 0;
+
+  if (state.openTagName !== null) {
+    let inQuote: string | null = null;
+    let inExpr = 0;
+    while (idx < cleanLine.length) {
+      const ch = cleanLine[idx];
+      if (inQuote) {
+        if (ch === inQuote && !isEscaped(cleanLine, idx)) {
+          inQuote = null;
+        }
+      } else {
+        if (ch === '"' || ch === "'") {
+          inQuote = ch;
+        } else if (ch === '{') {
+          inExpr++;
+        } else if (ch === '}') {
+          inExpr = Math.max(0, inExpr - 1);
+        } else if (ch === '>' && inExpr === 0) {
+          const isSelfClosing = idx > 0 && cleanLine[idx - 1] === '/';
+          if (!isSelfClosing) {
+            state.depth++;
+          }
+          state.openTagName = null;
+          idx++;
+          break;
+        }
+      }
+      idx++;
+    }
   }
-  const closeMatches = cleanLine.matchAll(/<\/(Tabs|TabItem|Steps|FileTree|CardGrid)>/g);
-  for (const _ of closeMatches) {
-    depth = Math.max(0, depth - 1);
+
+  while (idx < cleanLine.length) {
+    const rest = cleanLine.slice(idx);
+
+    const closeMatch = rest.match(/^<\/(Tabs|TabItem|Steps|FileTree|CardGrid)>/);
+    if (closeMatch) {
+      state.depth = Math.max(0, state.depth - 1);
+      idx += closeMatch[0].length;
+      continue;
+    }
+
+    const openMatch = rest.match(/^<(Tabs|TabItem|Steps|FileTree|CardGrid)\b/);
+    if (openMatch) {
+      const tagName = openMatch[1];
+      let tagIdx = idx + openMatch[0].length;
+      let inQuote: string | null = null;
+      let inExpr = 0;
+      let tagClosed = false;
+
+      while (tagIdx < cleanLine.length) {
+        const ch = cleanLine[tagIdx];
+        if (inQuote) {
+          if (ch === inQuote && !isEscaped(cleanLine, tagIdx)) {
+            inQuote = null;
+          }
+        } else {
+          if (ch === '"' || ch === "'") {
+            inQuote = ch;
+          } else if (ch === '{') {
+            inExpr++;
+          } else if (ch === '}') {
+            inExpr = Math.max(0, inExpr - 1);
+          } else if (ch === '>' && inExpr === 0) {
+            const isSelfClosing = tagIdx > 0 && cleanLine[tagIdx - 1] === '/';
+            if (!isSelfClosing) {
+              state.depth++;
+            }
+            tagClosed = true;
+            idx = tagIdx + 1;
+            break;
+          }
+        }
+        tagIdx++;
+      }
+
+      if (!tagClosed) {
+        state.openTagName = tagName;
+        break;
+      }
+      continue;
+    }
+
+    idx++;
   }
-  return depth;
 }
 
 function protectCode(content: string, codeBlocks: string[]): string {
@@ -338,7 +418,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
   let fenceListIndent = 0;
   let fenceIndent = 0;
   let currentListIndent = 0;
-  let mdxContainerDepth = 0;
+  const mdxState: MdxContainerState = { depth: 0, openTagName: null };
   let currentBlock: string[] = [];
 
   let i = 0;
@@ -431,6 +511,14 @@ function protectCode(content: string, codeBlocks: string[]): string {
       continue;
     }
 
+    // Continue multiline MDX container opening tag if one is active
+    if (mdxState.openTagName !== null) {
+      updateMdxContainerState(line, mdxState);
+      resultLines.push(line);
+      i++;
+      continue;
+    }
+
     // Track enclosing list item context across continuation lines
     const currParsed = getBlockquotePrefixAndRest(line);
     const rest = currParsed.rest;
@@ -482,6 +570,16 @@ function protectCode(content: string, codeBlocks: string[]): string {
       }
     }
 
+    // If this line opens or closes an MDX container at non-code indentation, update container state
+    const cleanLine = stripInlineCodeSpans(line);
+    const hasMdxTag = /<\/?(Tabs|TabItem|Steps|FileTree|CardGrid)\b/.test(cleanLine);
+    if (hasMdxTag && measureIndent(line) <= 3) {
+      updateMdxContainerState(line, mdxState);
+      resultLines.push(line);
+      i++;
+      continue;
+    }
+
     // Check fenced code block opener (including blockquoted, list-item, or indented fences in MDX containers)
     const fenceMatch = line.match(/^((?:\s*>[ \t]?)*(?:\s*(?:[-*+]|\d+[.)])\s+)?\s*)(`{3,}|~{3,})(.*)$/);
     if (fenceMatch) {
@@ -510,7 +608,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
           }
         }
 
-        const hasContainer = hasBq || listIndent > 0 || mdxContainerDepth > 0;
+        const hasContainer = hasBq || listIndent > 0 || mdxState.depth > 0;
         // Per CommonMark §4.5, root-level fence openers can have at most 3 spaces of initial indent.
         // Fences with 4 or more spaces at the root level are indented code blocks.
         if (hasContainer || indent <= 3) {
@@ -528,9 +626,10 @@ function protectCode(content: string, codeBlocks: string[]): string {
       }
     }
 
-    // Check indented code block relative to Markdown and MDX containers.
+    // Check indented code block relative to Markdown, list items, and MDX containers.
     // In blockquotes, indentation is evaluated on the content after the blockquote prefix.
-    // In MDX containers (mdxContainerDepth > 0), indented child elements are JSX/MDX content, not code blocks.
+    // In list items, an indented code block requires 4 spaces beyond the list item's content indentation.
+    // In MDX containers (mdxState.depth > 0), indented child elements are JSX/MDX content, not code blocks.
     let prevBlank = false;
     if (i === 0) {
       prevBlank = true;
@@ -543,20 +642,25 @@ function protectCode(content: string, codeBlocks: string[]): string {
       }
     }
 
+    const lineIndent = measureIndent(currParsed.rest);
+    const requiredIndent = currentListIndent + 4;
+
     const isIndentedCandidate =
       prevBlank &&
-      /^(?: {4}|\t)/.test(currParsed.rest) &&
-      (currParsed.bqCount > 0 || (mdxContainerDepth === 0 && currentListIndent === 0));
+      lineIndent >= requiredIndent &&
+      mdxState.depth === 0;
 
     if (isIndentedCandidate) {
       const indentedBlock: string[] = [];
       const indentedBqCount = currParsed.bqCount;
+      const indentedReqIndent = requiredIndent;
 
       while (i < lines.length) {
         const lineParsed = getBlockquotePrefixAndRest(lines[i]);
         if (indentedBqCount > 0) {
           if (lineParsed.bqCount === indentedBqCount) {
-            if (/^(?: {4}|\t)/.test(lineParsed.rest)) {
+            const ind = measureIndent(lineParsed.rest);
+            if (ind >= indentedReqIndent) {
               indentedBlock.push(lines[i]);
               i++;
             } else if (lineParsed.rest.trim() === '') {
@@ -572,7 +676,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
               if (
                 nextNonBlank < lines.length &&
                 getBlockquotePrefixAndRest(lines[nextNonBlank]).bqCount === indentedBqCount &&
-                /^(?: {4}|\t)/.test(getBlockquotePrefixAndRest(lines[nextNonBlank]).rest)
+                measureIndent(getBlockquotePrefixAndRest(lines[nextNonBlank]).rest) >= indentedReqIndent
               ) {
                 indentedBlock.push(lines[i]);
                 i++;
@@ -586,7 +690,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
             break;
           }
         } else {
-          if (lineParsed.bqCount === 0 && /^(?: {4}|\t)/.test(lines[i])) {
+          if (lineParsed.bqCount === 0 && measureIndent(lines[i]) >= indentedReqIndent) {
             indentedBlock.push(lines[i]);
             i++;
           } else if (lines[i].trim() === '') {
@@ -597,7 +701,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
             if (
               nextNonBlank < lines.length &&
               getBlockquotePrefixAndRest(lines[nextNonBlank]).bqCount === 0 &&
-              /^(?: {4}|\t)/.test(lines[nextNonBlank])
+              measureIndent(lines[nextNonBlank]) >= indentedReqIndent
             ) {
               indentedBlock.push(lines[i]);
               i++;
@@ -617,7 +721,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
       continue;
     }
 
-    mdxContainerDepth = updateMdxContainerDepth(line, mdxContainerDepth);
+    updateMdxContainerState(line, mdxState);
     resultLines.push(line);
     i++;
   }

@@ -785,4 +785,45 @@ Closing the outer 4-backtick block:
     outputListDedentedRoot.includes('- [Live After Transitions](/after-transitions/)'),
     'Live card after fence transitions must be serialized'
   );
+
+  // Regression: Indented code block inside list items (relative to list content indentation + 4 spaces)
+  const inputListIndentedCode = `- Example:
+
+      <LinkCard title="Literal List Item Code" href="/literal-list/" />
+      Another code line
+
+  Continuation paragraph in list item.`;
+  const outputListIndentedCode = stripStarlightJsx(inputListIndentedCode);
+  assert.ok(
+    outputListIndentedCode.includes('<LinkCard title="Literal List Item Code" href="/literal-list/" />'),
+    'Indented code block inside list item must retain literal LinkCard code'
+  );
+  assert.equal(
+    outputListIndentedCode.includes('- [Literal List Item Code]'),
+    false,
+    'Indented code inside list item must not be converted to link'
+  );
+  assert.ok(
+    outputListIndentedCode.includes('Continuation paragraph in list item.'),
+    'List continuation paragraph must be preserved'
+  );
+
+  // Regression: Multiline container opener (<CardGrid\n  stagger\n>) must increment container depth across lines
+  const inputMultilineCardGrid = `<CardGrid
+  stagger
+>
+
+    <LinkCard title="Live In Multiline CardGrid" href="/live-multiline-grid/" />
+
+</CardGrid>`;
+  const outputMultilineCardGrid = stripStarlightJsx(inputMultilineCardGrid);
+  assert.ok(
+    outputMultilineCardGrid.includes('- [Live In Multiline CardGrid](/live-multiline-grid/)'),
+    'Four-space indented live card in multiline CardGrid wrapper must be serialized to markdown link'
+  );
+  assert.equal(
+    outputMultilineCardGrid.includes('<LinkCard'),
+    false,
+    'Card inside multiline CardGrid wrapper must not remain raw JSX'
+  );
 });
