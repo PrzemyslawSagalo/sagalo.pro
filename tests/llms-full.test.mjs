@@ -852,4 +852,88 @@ Closing the outer 4-backtick block:
     false,
     'Live card after fence must not remain raw JSX'
   );
+
+  // Regression: Indented code starting with > must remain literal code (not a blockquote)
+  const inputIndentedCodeWithGt = `Some introductory text.
+
+    > <LinkCard title="Literal Blockquote Code" href="/literal-gt/" />
+
+Continuation paragraph.`;
+  const outputIndentedGt = stripStarlightJsx(inputIndentedCodeWithGt);
+  assert.ok(
+    outputIndentedGt.includes('> <LinkCard title="Literal Blockquote Code" href="/literal-gt/" />'),
+    'Indented code starting with > must retain literal LinkCard code'
+  );
+  assert.equal(
+    outputIndentedGt.includes('- [Literal Blockquote Code]'),
+    false,
+    'Indented code starting with > must not be converted to link'
+  );
+
+  // Regression: Indented code starting with a bullet marker must remain literal code (not a list item)
+  const inputIndentedCodeWithBullet = `Some introductory text.
+
+    - <LinkCard title="Literal Bullet Code" href="/literal-bullet/" />
+
+Continuation paragraph.`;
+  const outputIndentedBullet = stripStarlightJsx(inputIndentedCodeWithBullet);
+  assert.ok(
+    outputIndentedBullet.includes('- <LinkCard title="Literal Bullet Code" href="/literal-bullet/" />'),
+    'Indented code starting with bullet must retain literal LinkCard code'
+  );
+  assert.equal(
+    outputIndentedBullet.includes('- - [Literal Bullet Code]'),
+    false,
+    'Indented code starting with bullet must not be converted to list link'
+  );
+
+  // Regression: Four-space indented fence marker in blockquote is an indented code block, not a fence
+  const inputBlockquoteIndentedFence = `>     ~~~mdx
+>     <LinkCard title="Literal Code In BQ" href="/literal-bq/" />
+>
+> <LinkCard title="Live Card In BQ" href="/live-bq/" />`;
+  const outputBqIndentedFence = stripStarlightJsx(inputBlockquoteIndentedFence);
+  assert.ok(
+    outputBqIndentedFence.includes('~~~mdx'),
+    'Indented fence opener in blockquote must be preserved as literal text'
+  );
+  assert.ok(
+    outputBqIndentedFence.includes('<LinkCard title="Literal Code In BQ" href="/literal-bq/" />'),
+    'Indented code in blockquote must retain literal LinkCard'
+  );
+  assert.ok(
+    outputBqIndentedFence.includes('> - [Live Card In BQ](/live-bq/)'),
+    'Live card following blank quote line must be serialized to markdown link'
+  );
+  assert.equal(
+    outputBqIndentedFence.includes('<LinkCard title="Live Card In BQ"'),
+    false,
+    'Live card in blockquote must not remain raw JSX'
+  );
+
+  // Regression: Six-space indented fence marker inside bullet item is an indented code block, not a fence
+  const inputBulletIndentedFence = `- Bullet item
+
+      ~~~mdx
+      <LinkCard title="Literal Code In Bullet" href="/literal-bullet-code/" />
+
+  <LinkCard title="Live Card In Bullet" href="/live-bullet-card/" />`;
+  const outputBulletIndentedFence = stripStarlightJsx(inputBulletIndentedFence);
+  assert.ok(
+    outputBulletIndentedFence.includes('~~~mdx'),
+    'Six-space indented fence marker in bullet must be preserved as literal text'
+  );
+  assert.ok(
+    outputBulletIndentedFence.includes('<LinkCard title="Literal Code In Bullet" href="/literal-bullet-code/" />'),
+    'Indented code in bullet item must retain literal LinkCard'
+  );
+  assert.ok(
+    outputBulletIndentedFence.includes('- [Live Card In Bullet](/live-bullet-card/)'),
+    'Live card in bullet following blank line must be serialized to markdown link'
+  );
+  assert.equal(
+    outputBulletIndentedFence.includes('<LinkCard title="Live Card In Bullet"'),
+    false,
+    'Live card in bullet must not remain raw JSX'
+  );
 });

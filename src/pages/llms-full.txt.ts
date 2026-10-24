@@ -241,7 +241,7 @@ function getBlockquotePrefixAndRest(line: string): { bqCount: number; bqPrefix: 
   let bqCount = 0;
   let bqPrefix = '';
   while (true) {
-    const bqMatch = rest.match(/^\s*>[ \t]?/);
+    const bqMatch = rest.match(/^[ ]{0,3}>[ \t]?/);
     if (!bqMatch) break;
     bqCount++;
     bqPrefix += bqMatch[0];
@@ -253,7 +253,7 @@ function getBlockquotePrefixAndRest(line: string): { bqCount: number; bqPrefix: 
 function getRestAfterBlockquote(line: string, bqCount: number): string | null {
   let rest = line;
   for (let b = 0; b < bqCount; b++) {
-    const bqMatch = rest.match(/^\s*>[ \t]?/);
+    const bqMatch = rest.match(/^[ ]{0,3}>[ \t]?/);
     if (!bqMatch) return null;
     rest = rest.slice(bqMatch[0].length);
   }
@@ -272,10 +272,10 @@ function checkClosingFence(
   if (fenceBqCount > 0) {
     const afterBq = getRestAfterBlockquote(line, fenceBqCount);
     if (afterBq === null) return false;
-    if (/^\s*>/.test(afterBq)) return false;
+    if (/^[ ]{0,3}>/.test(afterBq)) return false;
     rest = afterBq;
   } else {
-    if (/^\s*>/.test(line)) return false;
+    if (/^[ ]{0,3}>/.test(line)) return false;
   }
 
   const match = rest.match(/^([ \t]*)(`{3,}|~{3,})[ \t]*$/);
@@ -522,9 +522,16 @@ function protectCode(content: string, codeBlocks: string[]): string {
     // Track enclosing list item context across continuation lines
     const currParsed = getBlockquotePrefixAndRest(line);
     const rest = currParsed.rest;
-    const listMarkerMatch = rest.match(/^(\s*(?:[-*+]|\d+[.)])\s+)/);
-    if (listMarkerMatch) {
-      currentListIndent = measurePrefixWidth(listMarkerMatch[1]);
+    const rawMarkerMatch = rest.match(/^([ \t]*(?:[-*+]|\d+[.)])[ \t]+)/);
+    let listMarkerMatch: RegExpMatchArray | null = null;
+    if (rawMarkerMatch) {
+      const leadingSpaceMatch = rawMarkerMatch[1].match(/^[ \t]*/);
+      const markerIndent = leadingSpaceMatch ? measureIndent(leadingSpaceMatch[0]) : 0;
+      const maxAllowedMarkerIndent = currentListIndent > 0 ? currentListIndent + 3 : 3;
+      if (markerIndent <= maxAllowedMarkerIndent) {
+        listMarkerMatch = rawMarkerMatch;
+        currentListIndent = measurePrefixWidth(rawMarkerMatch[1]);
+      }
     } else if (rest.trim() === '') {
       // Blank line does not immediately clear list indent; check if continuation follows
       let nextNonBlank = i + 1;
@@ -553,8 +560,16 @@ function protectCode(content: string, codeBlocks: string[]): string {
         nextNonBlank++;
       }
       if (nextRest !== null) {
-        const nextMarker = nextRest.match(/^(\s*(?:[-*+]|\d+[.)])\s+)/);
-        if (!nextMarker) {
+        const rawNextMarker = nextRest.match(/^([ \t]*(?:[-*+]|\d+[.)])[ \t]+)/);
+        let isValidNextMarker = false;
+        if (rawNextMarker) {
+          const leadingSpace = rawNextMarker[1].match(/^[ \t]*/);
+          const nextMarkerIndent = leadingSpace ? measureIndent(leadingSpace[0]) : 0;
+          if (nextMarkerIndent <= (currentListIndent > 0 ? currentListIndent + 3 : 3)) {
+            isValidNextMarker = true;
+          }
+        }
+        if (!isValidNextMarker) {
           const nextIndent = measureIndent(nextRest);
           if (nextIndent < currentListIndent) {
             currentListIndent = 0;
@@ -571,49 +586,57 @@ function protectCode(content: string, codeBlocks: string[]): string {
     }
 
     // Check fenced code block opener (including blockquoted, list-item, or indented fences in MDX containers)
-    const fenceMatch = line.match(/^((?:\s*>[ \t]?)*(?:\s*(?:[-*+]|\d+[.)])\s+)?\s*)(`{3,}|~{3,})(.*)$/);
-    if (fenceMatch) {
-      const char = fenceMatch[2][0];
-      const info = fenceMatch[3];
-      // CommonMark forbids backticks in info string of backtick fences
-      if (!(char === '`' && info.includes('`'))) {
-        const bqMatches = fenceMatch[1].match(/>/g);
-        const bqCount = bqMatches ? bqMatches.length : 0;
-        const hasBq = bqCount > 0;
-        const restPrefix = hasBq
-          ? getRestAfterBlockquote(fenceMatch[1], bqCount)
-          : fenceMatch[1];
+    let fenceCandidate: {
+      char: string;
+      length: number;
+      info: string;
+      listIndent: number;
+      fenceIndent: number;
+      relativeFenceIndent: number;
+    } | null = null;
 
-        let listIndent = 0;
-        let indent = 0;
-        if (restPrefix) {
-          const listMarkerMatch = restPrefix.match(/^(\s*(?:[-*+]|\d+[.)])\s+)/);
-          if (listMarkerMatch) {
-            listIndent = measurePrefixWidth(listMarkerMatch[1]);
-            const afterMarker = restPrefix.slice(listMarkerMatch[1].length);
-            indent = measureIndent(afterMarker);
-          } else {
-            listIndent = currentListIndent;
-            indent = measureIndent(restPrefix);
-          }
-        }
-
-        const hasContainer = hasBq || listIndent > 0 || mdxState.depth > 0;
-        // Per CommonMark §4.5, root-level fence openers can have at most 3 spaces of initial indent.
-        // Fences with 4 or more spaces at the root level are indented code blocks.
-        if (hasContainer || indent <= 3) {
-          inFence = true;
-          fenceChar = char;
-          fenceLength = fenceMatch[2].length;
-          fenceBqCount = bqCount;
-          fenceInBlockquote = hasBq;
-          fenceListIndent = listIndent;
-          fenceIndent = indent;
-          currentBlock = [line];
-          i++;
-          continue;
-        }
+    if (listMarkerMatch) {
+      const afterMarker = rest.slice(listMarkerMatch[1].length);
+      const m = afterMarker.match(/^([ \t]*)(`{3,}|~{3,})(.*)$/);
+      if (m && !(m[2][0] === '`' && m[3].includes('`'))) {
+        const indentAfterMarker = measureIndent(m[1]);
+        fenceCandidate = {
+          char: m[2][0],
+          length: m[2].length,
+          info: m[3],
+          listIndent: currentListIndent,
+          fenceIndent: indentAfterMarker,
+          relativeFenceIndent: indentAfterMarker,
+        };
       }
+    } else {
+      const m = rest.match(/^([ \t]*)(`{3,}|~{3,})(.*)$/);
+      if (m && !(m[2][0] === '`' && m[3].includes('`'))) {
+        const indent = measureIndent(m[1]);
+        const listIndent = currentListIndent;
+        const relativeFenceIndent = listIndent > 0 ? Math.max(0, indent - listIndent) : indent;
+        fenceCandidate = {
+          char: m[2][0],
+          length: m[2].length,
+          info: m[3],
+          listIndent,
+          fenceIndent: indent,
+          relativeFenceIndent,
+        };
+      }
+    }
+
+    if (fenceCandidate && (mdxState.depth > 0 || fenceCandidate.relativeFenceIndent <= 3)) {
+      inFence = true;
+      fenceChar = fenceCandidate.char;
+      fenceLength = fenceCandidate.length;
+      fenceBqCount = currParsed.bqCount;
+      fenceInBlockquote = currParsed.bqCount > 0;
+      fenceListIndent = fenceCandidate.listIndent;
+      fenceIndent = fenceCandidate.fenceIndent;
+      currentBlock = [line];
+      i++;
+      continue;
     }
 
     // Check indented code block relative to Markdown, list items, and MDX containers.
