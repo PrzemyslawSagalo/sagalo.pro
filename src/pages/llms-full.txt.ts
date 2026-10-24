@@ -12,10 +12,32 @@ export interface FullDocEntryLike {
 }
 
 export function stripStarlightJsx(content: string): string {
-  return content
+  // 1. Strip MDX import declarations
+  let cleaned = content
     .replace(/^import\s+[^;\n]+;\s*$/gm, '')
-    .replace(/^import\s*\{[\s\S]*?\}\s*from\s*['"][^'"]+['"];?\s*$/gm, '')
-    .replace(/<\/?(?:Tabs|TabItem|Steps|FileTree|CardGrid|LinkCard)(?:\s+[\s\S]*?)?\/?>/g, '')
+    .replace(/^import\s*\{[\s\S]*?\}\s*from\s*['"][^'"]+['"];?\s*$/gm, '');
+
+  // 2. Serialize LinkCards into Markdown links with descriptions before stripping wrapper tags
+  cleaned = cleaned.replace(/<LinkCard\b([\s\S]*?)\/?>/gi, (_, attrs) => {
+    const titleMatch = attrs.match(/title=["']([^"']+)["']/);
+    const hrefMatch = attrs.match(/href=["']([^"']+)["']/);
+    const descMatch = attrs.match(/description=["']([^"']+)["']/);
+
+    const title = titleMatch ? titleMatch[1] : '';
+    const href = hrefMatch ? hrefMatch[1] : '';
+    const desc = descMatch ? descMatch[1] : '';
+
+    if (title && href) {
+      return desc ? `- [${title}](${href}): ${desc}` : `- [${title}](${href})`;
+    } else if (title) {
+      return desc ? `- **${title}**: ${desc}` : `- **${title}**`;
+    }
+    return '';
+  });
+
+  // 3. Strip remaining Starlight wrapper tags (<CardGrid>, <Tabs>, <Steps>, etc.)
+  return cleaned
+    .replace(/<\/?(?:Tabs|TabItem|Steps|FileTree|CardGrid)(?:\s+[\s\S]*?)?\/?>/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }

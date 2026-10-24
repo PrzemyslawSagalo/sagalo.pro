@@ -47,6 +47,10 @@ Some regular markdown text here.
   assert.equal(output.includes('<CardGrid>'), false, 'Should strip opening <CardGrid>');
   assert.equal(output.includes('</CardGrid>'), false, 'Should strip closing </CardGrid>');
   assert.equal(output.includes('<LinkCard'), false, 'Should strip multiline <LinkCard>');
+  assert.ok(
+    output.includes('- [Git Workflows](/runbooks/git/workflows/): Multi-branch sync, detached HEAD recovery, and commit audits.'),
+    'Must serialize LinkCard into Markdown link with description'
+  );
   assert.ok(output.includes('Some regular markdown text here.'), 'Must preserve regular text');
 });
 
