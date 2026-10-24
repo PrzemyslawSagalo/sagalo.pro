@@ -11,9 +11,10 @@ export interface FullDocEntryLike {
   };
 }
 
-const JSX_EXPR_INNER = '(?:[^}"\'`]|"[^"]*"|\'[^\']*\'|`[^`]*`)*';
-const JSX_ATTR_VALUE_PATTERN = `(?:"([^"]*)"|'([^']*)'|\\{(${JSX_EXPR_INNER})\\})`;
-const TAG_ATTR_PATTERN = `(?:[^>"\'\`{}]|"[^"]*"|\'[^\']*\'|\`[^\`]*\`|\\{${JSX_EXPR_INNER}\\})*`;
+const JSX_STRING_LITERAL = '(?:(?:"(?:[^"\\\\]|\\\\.)*")|(?:\'(?:[^\'\\\\]|\\\\.)*\')|(?:`(?:[^`\\\\]|\\\\.)*`))';
+const JSX_EXPR_INNER = `(?:[^}"\'\`]|${JSX_STRING_LITERAL})*`;
+const JSX_ATTR_VALUE_PATTERN = `(?:"((?:[^"\\\\]|\\\\.)*)"|'((?:[^\'\\\\]|\\\\.)*)'|\\{(${JSX_EXPR_INNER})\\})`;
+const TAG_ATTR_PATTERN = `(?:[^>"\'\`{}]|${JSX_STRING_LITERAL}|\\{${JSX_EXPR_INNER}\\})*`;
 
 function decodeJsxValue(rawVal: string): string {
   const trimmed = rawVal.trim();
@@ -37,9 +38,9 @@ function parseAttributes(attrs: string): Map<string, string> {
     const key = match[1].toLowerCase();
     let val: string;
     if (match[2] !== undefined) {
-      val = match[2];
+      val = match[2].replace(/\\"/g, '"');
     } else if (match[3] !== undefined) {
-      val = match[3];
+      val = match[3].replace(/\\'/g, "'");
     } else if (match[4] !== undefined) {
       val = decodeJsxValue(match[4]);
     } else {
@@ -50,6 +51,53 @@ function parseAttributes(attrs: string): Map<string, string> {
     }
   }
   return map;
+}
+
+function protectInlineCodeSpans(str: string, codeBlocks: string[], minRunLen = 1, maxRunLen = Infinity): string {
+  let result = '';
+  let i = 0;
+  while (i < str.length) {
+    if (str[i] === '`') {
+      const runStart = i;
+      while (i < str.length && str[i] === '`') i++;
+      const runLen = i - runStart;
+
+      if (runLen < minRunLen || runLen > maxRunLen) {
+        result += str.slice(runStart, i);
+        continue;
+      }
+
+      let closeStart = -1;
+      let j = i;
+      while (j < str.length) {
+        if (str[j] === '`') {
+          const cStart = j;
+          while (j < str.length && str[j] === '`') j++;
+          const cLen = j - cStart;
+          if (cLen === runLen) {
+            closeStart = cStart;
+            break;
+          }
+        } else {
+          j++;
+        }
+      }
+
+      if (closeStart !== -1) {
+        const spanText = str.slice(runStart, closeStart + runLen);
+        const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
+        codeBlocks.push(spanText);
+        result += id;
+        i = closeStart + runLen;
+      } else {
+        result += str.slice(runStart, i);
+      }
+    } else {
+      result += str[i];
+      i++;
+    }
+  }
+  return result;
 }
 
 function protectCode(content: string, codeBlocks: string[]): string {
@@ -92,45 +140,19 @@ function protectCode(content: string, codeBlocks: string[]): string {
     resultLines.push(id);
   }
 
-  const fencedContent = resultLines.join('\n');
-  let protectedContent = '';
-  let i = 0;
-  while (i < fencedContent.length) {
-    if (fencedContent[i] === '`') {
-      const runStart = i;
-      while (i < fencedContent.length && fencedContent[i] === '`') i++;
-      const runLen = i - runStart;
+  let fencedContent = resultLines.join('\n');
 
-      let closeStart = -1;
-      let j = i;
-      while (j < fencedContent.length) {
-        if (fencedContent[j] === '`') {
-          const cStart = j;
-          while (j < fencedContent.length && fencedContent[j] === '`') j++;
-          const cLen = j - cStart;
-          if (cLen === runLen) {
-            closeStart = cStart;
-            break;
-          }
-        } else {
-          j++;
-        }
-      }
+  // Step 2: Protect multi-backtick Markdown code spans (length >= 2)
+  fencedContent = protectInlineCodeSpans(fencedContent, codeBlocks, 2);
 
-      if (closeStart !== -1) {
-        const spanText = fencedContent.slice(runStart, closeStart + runLen);
-        const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
-        codeBlocks.push(spanText);
-        protectedContent += id;
-        i = closeStart + runLen;
-      } else {
-        protectedContent += fencedContent.slice(runStart, i);
-      }
-    } else {
-      protectedContent += fencedContent[i];
-      i++;
-    }
-  }
+  // Step 3: Distinguish and normalize JSX template literal attribute expressions
+  fencedContent = fencedContent.replace(/\b([a-zA-Z0-9_-]+\s*=\s*\{\s*)`((?:[^`\\]|\\.)*)`(\s*\})/g, (_, pre, val, post) => {
+    const escaped = val.replace(/(?<!\\)"/g, '\\"');
+    return `${pre}"${escaped}"${post}`;
+  });
+
+  // Step 4: Protect 1-backtick Markdown code spans
+  const protectedContent = protectInlineCodeSpans(fencedContent, codeBlocks, 1, 1);
 
   return protectedContent;
 }

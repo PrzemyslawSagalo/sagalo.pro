@@ -120,6 +120,41 @@ Some regular markdown text here.
     outputBraces.includes('- [Using {name}](/guide/): Desc with {braces}'),
     'Must handle closing braces inside quoted JSX expressions without breaking serialization'
   );
+
+  const inputWithTemplateLiterals = `
+<CardGrid>
+  <LinkCard
+    title={\`Template Guide\`}
+    href={\`/template-guide/\`}
+    description={\`Template description\`}
+  />
+</CardGrid>
+`;
+  const outputTemplate = stripStarlightJsx(inputWithTemplateLiterals);
+  assert.ok(
+    outputTemplate.includes('- [Template Guide](/template-guide/): Template description'),
+    'Must handle JSX template literal attributes without inserting backticks into Markdown link or destination'
+  );
+  assert.equal(
+    outputTemplate.includes('`/template-guide/`'),
+    false,
+    'Destination must not contain backticks'
+  );
+
+  const inputWithEscapedQuotes = `
+<CardGrid>
+  <LinkCard
+    title={'Developer\\'s Guide'}
+    href="/guide/"
+    description={"A \\"Special\\" Description"}
+  />
+</CardGrid>
+`;
+  const outputEscaped = stripStarlightJsx(inputWithEscapedQuotes);
+  assert.ok(
+    outputEscaped.includes("- [Developer's Guide](/guide/): A \"Special\" Description"),
+    'Must parse escaped quotes inside JSX expression string literals'
+  );
 });
 
 test('Test 2: stripStarlightJsx strips <Tabs>, </Tabs>, <TabItem>, <Steps>, and <FileTree> tags while preserving tab labels', async () => {
