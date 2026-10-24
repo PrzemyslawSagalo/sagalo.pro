@@ -170,6 +170,41 @@ function getRestAfterBlockquote(line: string, bqCount: number): string | null {
   return rest;
 }
 
+function checkClosingFence(
+  line: string,
+  fenceChar: string,
+  fenceLength: number,
+  fenceBqCount: number,
+  fenceIndent: number,
+  fenceListIndent: number
+): boolean {
+  let rest = line;
+  if (fenceBqCount > 0) {
+    const afterBq = getRestAfterBlockquote(line, fenceBqCount);
+    if (afterBq === null) return false;
+    if (/^\s*>/.test(afterBq)) return false;
+    rest = afterBq;
+  } else {
+    if (/^\s*>/.test(line)) return false;
+  }
+
+  const match = rest.match(/^([ \t]*)(`{3,}|~{3,})[ \t]*$/);
+  if (!match) return false;
+
+  const closeChar = match[2][0];
+  const closeLength = match[2].length;
+  if (closeChar !== fenceChar || closeLength < fenceLength) return false;
+
+  const closeIndent = measureIndent(match[1]);
+  const maxCloseIndent = fenceListIndent > 0
+    ? fenceListIndent + fenceIndent + 3
+    : fenceIndent + 3;
+
+  if (closeIndent > maxCloseIndent) return false;
+
+  return true;
+}
+
 function protectCode(content: string, codeBlocks: string[]): string {
   const lines = content.split('\n');
   const resultLines: string[] = [];
@@ -179,6 +214,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
   let fenceInBlockquote = false;
   let fenceBqCount = 0;
   let fenceListIndent = 0;
+  let fenceIndent = 0;
   let currentBlock: string[] = [];
 
   let i = 0;
@@ -186,14 +222,14 @@ function protectCode(content: string, codeBlocks: string[]): string {
     const line = lines[i];
 
     if (inFence) {
-      // 1. Check if this line is a closing fence delimiter
-      const closeMatch = line.match(/^(?:\s*>[ \t]?)*\s*(`{3,}|~{3,})\s*$/);
-      if (closeMatch && closeMatch[1][0] === fenceChar && closeMatch[1].length >= fenceLength) {
+      // 1. Check if this line is a closing fence delimiter validated against container context & indentation
+      if (checkClosingFence(line, fenceChar, fenceLength, fenceBqCount, fenceIndent, fenceListIndent)) {
         currentBlock.push(line);
         inFence = false;
         fenceInBlockquote = false;
         fenceBqCount = 0;
         fenceListIndent = 0;
+        fenceIndent = 0;
         const blockText = currentBlock.join('\n');
         const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
         codeBlocks.push(blockText);
@@ -211,6 +247,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
         fenceInBlockquote = false;
         fenceBqCount = 0;
         fenceListIndent = 0;
+        fenceIndent = 0;
         const blockText = currentBlock.join('\n');
         const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
         codeBlocks.push(blockText);
@@ -254,6 +291,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
           fenceInBlockquote = false;
           fenceBqCount = 0;
           fenceListIndent = 0;
+          fenceIndent = 0;
           const blockText = currentBlock.join('\n');
           const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
           codeBlocks.push(blockText);
@@ -284,13 +322,19 @@ function protectCode(content: string, codeBlocks: string[]): string {
         const restPrefix = fenceInBlockquote
           ? getRestAfterBlockquote(fenceMatch[1], fenceBqCount)
           : fenceMatch[1];
-        const listMarkerMatch = restPrefix
-          ? restPrefix.match(/^(\s*(?:[-*+]|\d+[.)])\s+)/)
-          : null;
-        if (listMarkerMatch) {
-          fenceListIndent = measurePrefixWidth(listMarkerMatch[1]);
+        if (restPrefix) {
+          const listMarkerMatch = restPrefix.match(/^(\s*(?:[-*+]|\d+[.)])\s+)/);
+          if (listMarkerMatch) {
+            fenceListIndent = measurePrefixWidth(listMarkerMatch[1]);
+            const afterMarker = restPrefix.slice(listMarkerMatch[1].length);
+            fenceIndent = measureIndent(afterMarker);
+          } else {
+            fenceListIndent = 0;
+            fenceIndent = measureIndent(restPrefix);
+          }
         } else {
           fenceListIndent = 0;
+          fenceIndent = 0;
         }
         currentBlock = [line];
         i++;

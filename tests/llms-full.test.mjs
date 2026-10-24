@@ -550,4 +550,38 @@ Closing the outer 4-backtick block:
     outputUnclosedBqList.includes('- [Live Outside Bq List](/outside-bq-list/)'),
     'Live card outside blockquote must be serialized when blockquoted list fence is unclosed'
   );
+
+  // Regression: Root-level fence containing literal blockquoted fence (> ~~~) must not close prematurely
+  const inputRootFenceWithBqContent = '~~~mdx\nLiteral blockquote fence:\n> ~~~\n<LinkCard title="Example Card" href="/example/" />\n~~~\n\n<LinkCard title="Live After Root Fence" href="/after-root/" />';
+  const outputRootWithBq = stripStarlightJsx(inputRootFenceWithBqContent);
+  assert.ok(
+    outputRootWithBq.includes('<LinkCard title="Example Card" href="/example/" />'),
+    'Literal LinkCard following > ~~~ inside root-level fence must remain unchanged'
+  );
+  assert.equal(
+    outputRootWithBq.includes('- [Example Card]'),
+    false,
+    'Card inside root-level fence must not be converted into a markdown link'
+  );
+  assert.ok(
+    outputRootWithBq.includes('- [Live After Root Fence](/after-root/)'),
+    'Live card after root-level fence must be serialized'
+  );
+
+  // Regression: Root-level fence containing literal 4-space indented fence (    ~~~) must not close prematurely
+  const inputRootFenceWithIndentedContent = '~~~mdx\nLiteral indented fence:\n    ~~~\n<LinkCard title="Indented Example Card" href="/indented-example/" />\n~~~\n\n<LinkCard title="Live After Indented Fence" href="/after-indented-fence/" />';
+  const outputRootWithIndented = stripStarlightJsx(inputRootFenceWithIndentedContent);
+  assert.ok(
+    outputRootWithIndented.includes('<LinkCard title="Indented Example Card" href="/indented-example/" />'),
+    'Literal LinkCard following 4-space indented fence inside root-level fence must remain unchanged'
+  );
+  assert.equal(
+    outputRootWithIndented.includes('- [Indented Example Card]'),
+    false,
+    'Card inside root-level fence must not be converted into a markdown link'
+  );
+  assert.ok(
+    outputRootWithIndented.includes('- [Live After Indented Fence](/after-indented-fence/)'),
+    'Live card after root-level fence containing indented fence must be serialized'
+  );
 });
