@@ -725,4 +725,64 @@ Closing the outer 4-backtick block:
     false,
     'TabItem child must not remain raw JSX'
   );
+
+  // Regression: Template normalization must be limited to JSX attribute values and not alter prose code spans
+  const inputProseTemplateSpan = 'The option syntax is value={`<CardGrid>literal</CardGrid>`}.';
+  const outputProseTemplate = stripStarlightJsx(inputProseTemplateSpan);
+  assert.ok(
+    outputProseTemplate.includes('value={`<CardGrid>literal</CardGrid>`}'),
+    'Prose inline code span containing JSX template syntax must retain backticks and literal component tags'
+  );
+  assert.equal(
+    outputProseTemplate.includes('value={"literal"}'),
+    false,
+    'Prose code span must not be normalized to JSX attribute format'
+  );
+
+  // Regression: Fenced code block on a list-continuation line below a numbered-list paragraph
+  const inputListContinuationFence = `1. First list item paragraph.
+
+    ~~~mdx
+    <LinkCard title="Continuation Example" href="/cont-ex/" />
+    ~~~
+
+<LinkCard title="Live Card After Numbered List" href="/live-after-numbered/" />`;
+  const outputListContinuation = stripStarlightJsx(inputListContinuationFence);
+  assert.ok(
+    outputListContinuation.includes('<LinkCard title="Continuation Example" href="/cont-ex/" />'),
+    'Continuation line fence must retain literal LinkCard code'
+  );
+  assert.equal(
+    outputListContinuation.includes('- [Continuation Example]'),
+    false,
+    'Continuation line fence content must not be converted to link'
+  );
+  assert.ok(
+    outputListContinuation.includes('- [Live Card After Numbered List](/live-after-numbered/)'),
+    'Live card following list continuation fence must be serialized'
+  );
+
+  // Regression: Dedented root fence delimiter below list continuation must not be consumed as list closer
+  const inputListContinuationWithDedentedRoot = `* Bullet item paragraph.
+
+    ~~~mdx
+    <LinkCard title="Bullet List Example" href="/bullet-ex/" />
+~~~
+<LinkCard title="Root Fence Example" href="/root-fence-ex/" />
+~~~
+
+<LinkCard title="Live After Transitions" href="/after-transitions/" />`;
+  const outputListDedentedRoot = stripStarlightJsx(inputListContinuationWithDedentedRoot);
+  assert.ok(
+    outputListDedentedRoot.includes('<LinkCard title="Bullet List Example" href="/bullet-ex/" />'),
+    'Bullet list continuation fence must preserve literal code'
+  );
+  assert.ok(
+    outputListDedentedRoot.includes('<LinkCard title="Root Fence Example" href="/root-fence-ex/" />'),
+    'Root fence must preserve literal code'
+  );
+  assert.ok(
+    outputListDedentedRoot.includes('- [Live After Transitions](/after-transitions/)'),
+    'Live card after fence transitions must be serialized'
+  );
 });

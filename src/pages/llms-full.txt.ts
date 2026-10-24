@@ -63,6 +63,34 @@ function isEscaped(str: string, index: number): boolean {
   return count % 2 === 1;
 }
 
+function isInsideJsxTag(prefix: string): boolean {
+  const lastLt = prefix.lastIndexOf('<');
+  if (lastLt === -1) return false;
+  const tagSlice = prefix.slice(lastLt);
+  if (!/^<[A-Za-z][A-Za-z0-9._-]*\b/.test(tagSlice)) return false;
+  let inQuote: string | null = null;
+  let inExpr = 0;
+  for (let idx = 1; idx < tagSlice.length; idx++) {
+    const ch = tagSlice[idx];
+    if (inQuote) {
+      if (ch === inQuote && !isEscaped(tagSlice, idx)) {
+        inQuote = null;
+      }
+    } else {
+      if (ch === '"' || ch === "'") {
+        inQuote = ch;
+      } else if (ch === '{') {
+        inExpr++;
+      } else if (ch === '}') {
+        inExpr = Math.max(0, inExpr - 1);
+      } else if (ch === '>' && inExpr === 0) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 function protectInlineCodeSpans(str: string, codeBlocks: string[]): string {
   let result = '';
   let i = 0;
@@ -79,7 +107,11 @@ function protectInlineCodeSpans(str: string, codeBlocks: string[]): string {
       const runLen = i - runStart;
 
       // Check if this single backtick is a JSX attribute template expression (e.g. title={`...`})
-      if (runLen === 1 && /[a-zA-Z0-9_-]+\s*=\s*\{\s*$/.test(str.slice(0, runStart))) {
+      if (
+        runLen === 1 &&
+        /[a-zA-Z0-9_-]+\s*=\s*\{\s*$/.test(str.slice(0, runStart)) &&
+        isInsideJsxTag(str.slice(0, runStart))
+      ) {
         // Find closing backtick of template literal
         let j = i;
         while (j < str.length && (str[j] !== '`' || isEscaped(str, j))) j++;
@@ -305,6 +337,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
   let fenceBqCount = 0;
   let fenceListIndent = 0;
   let fenceIndent = 0;
+  let currentListIndent = 0;
   let mdxContainerDepth = 0;
   let currentBlock: string[] = [];
 
@@ -383,6 +416,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
           fenceBqCount = 0;
           fenceListIndent = 0;
           fenceIndent = 0;
+          currentListIndent = 0;
           const blockText = currentBlock.join('\n');
           const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
           codeBlocks.push(blockText);
@@ -395,6 +429,57 @@ function protectCode(content: string, codeBlocks: string[]): string {
       currentBlock.push(line);
       i++;
       continue;
+    }
+
+    // Track enclosing list item context across continuation lines
+    const currParsed = getBlockquotePrefixAndRest(line);
+    const rest = currParsed.rest;
+    const listMarkerMatch = rest.match(/^(\s*(?:[-*+]|\d+[.)])\s+)/);
+    if (listMarkerMatch) {
+      currentListIndent = measurePrefixWidth(listMarkerMatch[1]);
+    } else if (rest.trim() === '') {
+      // Blank line does not immediately clear list indent; check if continuation follows
+      let nextNonBlank = i + 1;
+      let nextRest: string | null = null;
+      while (nextNonBlank < lines.length) {
+        const nextParsed = getBlockquotePrefixAndRest(lines[nextNonBlank]);
+        if (currParsed.bqCount > 0) {
+          if (nextParsed.bqCount === currParsed.bqCount) {
+            if (nextParsed.rest.trim() !== '') {
+              nextRest = nextParsed.rest;
+              break;
+            }
+          } else {
+            break;
+          }
+        } else {
+          if (nextParsed.bqCount === 0) {
+            if (lines[nextNonBlank].trim() !== '') {
+              nextRest = lines[nextNonBlank];
+              break;
+            }
+          } else {
+            break;
+          }
+        }
+        nextNonBlank++;
+      }
+      if (nextRest !== null) {
+        const nextMarker = nextRest.match(/^(\s*(?:[-*+]|\d+[.)])\s+)/);
+        if (!nextMarker) {
+          const nextIndent = measureIndent(nextRest);
+          if (nextIndent < currentListIndent) {
+            currentListIndent = 0;
+          }
+        }
+      } else {
+        currentListIndent = 0;
+      }
+    } else {
+      const indent = measureIndent(rest);
+      if (indent < currentListIndent) {
+        currentListIndent = 0;
+      }
     }
 
     // Check fenced code block opener (including blockquoted, list-item, or indented fences in MDX containers)
@@ -420,7 +505,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
             const afterMarker = restPrefix.slice(listMarkerMatch[1].length);
             indent = measureIndent(afterMarker);
           } else {
-            listIndent = 0;
+            listIndent = currentListIndent;
             indent = measureIndent(restPrefix);
           }
         }
@@ -446,7 +531,6 @@ function protectCode(content: string, codeBlocks: string[]): string {
     // Check indented code block relative to Markdown and MDX containers.
     // In blockquotes, indentation is evaluated on the content after the blockquote prefix.
     // In MDX containers (mdxContainerDepth > 0), indented child elements are JSX/MDX content, not code blocks.
-    const currParsed = getBlockquotePrefixAndRest(line);
     let prevBlank = false;
     if (i === 0) {
       prevBlank = true;
@@ -462,7 +546,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
     const isIndentedCandidate =
       prevBlank &&
       /^(?: {4}|\t)/.test(currParsed.rest) &&
-      (currParsed.bqCount > 0 || mdxContainerDepth === 0);
+      (currParsed.bqCount > 0 || (mdxContainerDepth === 0 && currentListIndent === 0));
 
     if (isIndentedCandidate) {
       const indentedBlock: string[] = [];
