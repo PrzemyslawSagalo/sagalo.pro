@@ -11,7 +11,7 @@ const makefilePath = path.join(projectRoot, 'Makefile');
 const deployYmlPath = path.join(projectRoot, '.github/workflows/deploy.yml');
 const deployYamlPath = path.join(projectRoot, '.github/workflows/deploy.yaml');
 
-test('Test 1: .github/workflows/ci.yml contains Run test suite step running npm test in build-check job immediately after npm ci', () => {
+test('Test 1: .github/workflows/ci.yml builds the site before running the test suite', () => {
   const ciContent = fs.readFileSync(ciWorkflowPath, 'utf8');
   const parsed = yaml.parse(ciContent);
 
@@ -22,10 +22,13 @@ test('Test 1: .github/workflows/ci.yml contains Run test suite step running npm 
   const ciIndex = steps.findIndex((s) => s.run && s.run.trim() === 'npm ci');
   assert.ok(ciIndex !== -1, 'npm ci step must exist in build-check');
 
-  const testStep = steps[ciIndex + 1];
-  assert.ok(testStep, 'Step immediately following npm ci must exist');
-  assert.equal(testStep.name, 'Run test suite', 'Step name must be "Run test suite"');
-  assert.equal(testStep.run.trim(), 'npm test', 'Step must execute "npm test"');
+  const buildIndex = steps.findIndex((s) => s.name === 'Build site with Astro');
+  assert.ok(buildIndex > ciIndex, 'Build step must follow npm ci');
+  assert.equal(steps[buildIndex].run.trim(), 'npm run build', 'Build step must execute "npm run build"');
+
+  const testIndex = steps.findIndex((s) => s.name === 'Run test suite');
+  assert.ok(testIndex > buildIndex, 'Test suite must run after the build');
+  assert.equal(steps[testIndex].run.trim(), 'npm test', 'Test step must execute "npm test"');
 });
 
 test('Test 2: .github/workflows/ci.yml does not contain redundant npx astro check step in build-check job', () => {
