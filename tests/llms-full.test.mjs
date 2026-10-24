@@ -647,4 +647,82 @@ Closing the outer 4-backtick block:
     outputRoot4Space.includes('- [Live After Indented Code](/live-after-code/)'),
     'Live card after 4-space indented code must be serialized'
   );
+
+  // Regression: Prose containing inline code span `<Tabs>` must not increment MDX container depth
+  // Indented example following prose must be treated as indented code, and live card must be serialized.
+  const inputProseWithCodeSpan = `Use \`<Tabs>\` to group tabbed content.
+
+    ~~~mdx
+    <LinkCard title="Indented Example" href="/indented-ex/" />
+    ~~~
+
+<LinkCard title="Live Card After Prose" href="/live-after-prose/" />`;
+  const outputProseWithCodeSpan = stripStarlightJsx(inputProseWithCodeSpan);
+  assert.ok(
+    outputProseWithCodeSpan.includes('<LinkCard title="Indented Example" href="/indented-ex/" />'),
+    'Indented example card must remain literal code'
+  );
+  assert.equal(
+    outputProseWithCodeSpan.includes('- [Indented Example]'),
+    false,
+    'Indented example card must not be converted to link'
+  );
+  assert.ok(
+    outputProseWithCodeSpan.includes('- [Live Card After Prose](/live-after-prose/)'),
+    'Live card following prose with code span must be serialized'
+  );
+
+  // Regression: Indented code block within Markdown blockquote must remain literal code
+  const inputBlockquoteIndentedCode = `> Blockquote text
+>
+>     <LinkCard title="Literal Blockquoted Card" href="/literal-bq/" />
+>     Another code line
+>
+> Back to blockquote text`;
+  const outputBlockquoteIndented = stripStarlightJsx(inputBlockquoteIndentedCode);
+  assert.ok(
+    outputBlockquoteIndented.includes('<LinkCard title="Literal Blockquoted Card" href="/literal-bq/" />'),
+    'Indented code block within blockquote must remain literal code'
+  );
+  assert.equal(
+    outputBlockquoteIndented.includes('Literal Blockquoted Card](/literal-bq/)'),
+    false,
+    'Indented code in blockquote must not be converted to markdown link'
+  );
+
+  // Regression: Four-space-indented live components inside CardGrid after blank line must be serialized
+  const inputIndentedInCardGrid = `<CardGrid>
+
+    <LinkCard title="Live Card In CardGrid" href="/live-in-grid/" />
+
+</CardGrid>`;
+  const outputIndentedInCardGrid = stripStarlightJsx(inputIndentedInCardGrid);
+  assert.ok(
+    outputIndentedInCardGrid.includes('- [Live Card In CardGrid](/live-in-grid/)'),
+    'Four-space indented live card in CardGrid must be serialized to markdown link'
+  );
+  assert.equal(
+    outputIndentedInCardGrid.includes('<LinkCard'),
+    false,
+    'CardGrid child must not remain raw JSX'
+  );
+
+  // Regression: Four-space-indented live components inside TabItem after blank line must be serialized
+  const inputIndentedInTabItem = `<Tabs>
+  <TabItem label="Featured">
+
+    <LinkCard title="Live Card In TabItem" href="/live-in-tab/" />
+
+  </TabItem>
+</Tabs>`;
+  const outputIndentedInTabItem = stripStarlightJsx(inputIndentedInTabItem);
+  assert.ok(
+    outputIndentedInTabItem.includes('- [Live Card In TabItem](/live-in-tab/)'),
+    'Four-space indented live card in TabItem must be serialized to markdown link'
+  );
+  assert.equal(
+    outputIndentedInTabItem.includes('<LinkCard'),
+    false,
+    'TabItem child must not remain raw JSX'
+  );
 });

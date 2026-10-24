@@ -134,6 +134,50 @@ function protectInlineCodeSpans(str: string, codeBlocks: string[]): string {
   return result;
 }
 
+function stripInlineCodeSpans(str: string): string {
+  let result = '';
+  let i = 0;
+  while (i < str.length) {
+    if (str[i] === '`') {
+      if (isEscaped(str, i)) {
+        result += '`';
+        i++;
+        continue;
+      }
+
+      const runStart = i;
+      while (i < str.length && str[i] === '`') i++;
+      const runLen = i - runStart;
+
+      let closeStart = -1;
+      let j = i;
+      while (j < str.length) {
+        if (str[j] === '`') {
+          const cStart = j;
+          while (j < str.length && str[j] === '`') j++;
+          const cLen = j - cStart;
+          if (cLen === runLen) {
+            closeStart = cStart;
+            break;
+          }
+        } else {
+          j++;
+        }
+      }
+
+      if (closeStart !== -1) {
+        i = closeStart + runLen;
+      } else {
+        result += str.slice(runStart, i);
+      }
+    } else {
+      result += str[i];
+      i++;
+    }
+  }
+  return result;
+}
+
 function measureIndent(str: string): number {
   let indent = 0;
   for (let idx = 0; idx < str.length; idx++) {
@@ -158,6 +202,20 @@ function measurePrefixWidth(str: string): number {
     }
   }
   return width;
+}
+
+function getBlockquotePrefixAndRest(line: string): { bqCount: number; bqPrefix: string; rest: string } {
+  let rest = line;
+  let bqCount = 0;
+  let bqPrefix = '';
+  while (true) {
+    const bqMatch = rest.match(/^\s*>[ \t]?/);
+    if (!bqMatch) break;
+    bqCount++;
+    bqPrefix += bqMatch[0];
+    rest = rest.slice(bqMatch[0].length);
+  }
+  return { bqCount, bqPrefix, rest };
 }
 
 function getRestAfterBlockquote(line: string, bqCount: number): string | null {
@@ -224,12 +282,13 @@ function checkClosingFence(
 }
 
 function updateMdxContainerDepth(line: string, currentDepth: number): number {
+  const cleanLine = stripInlineCodeSpans(line);
   let depth = currentDepth;
-  const openMatches = line.matchAll(/<(Tabs|TabItem|Steps|FileTree|CardGrid)(?:\s+[^>]*)?(?<!\/)>/g);
+  const openMatches = cleanLine.matchAll(/<(Tabs|TabItem|Steps|FileTree|CardGrid)(?:\s+[^>]*)?(?<!\/)>/g);
   for (const _ of openMatches) {
     depth++;
   }
-  const closeMatches = line.matchAll(/<\/(Tabs|TabItem|Steps|FileTree|CardGrid)>/g);
+  const closeMatches = cleanLine.matchAll(/<\/(Tabs|TabItem|Steps|FileTree|CardGrid)>/g);
   for (const _ of closeMatches) {
     depth = Math.max(0, depth - 1);
   }
@@ -384,29 +443,89 @@ function protectCode(content: string, codeBlocks: string[]): string {
       }
     }
 
-    // Check indented code block: preceded by blank line (or start of doc)
-    const prevBlank = (i === 0 || lines[i - 1].trim() === '');
-    if (prevBlank && /^(?: {4}|\t)/.test(line)) {
-      const indentedBlock = [];
+    // Check indented code block relative to Markdown and MDX containers.
+    // In blockquotes, indentation is evaluated on the content after the blockquote prefix.
+    // In MDX containers (mdxContainerDepth > 0), indented child elements are JSX/MDX content, not code blocks.
+    const currParsed = getBlockquotePrefixAndRest(line);
+    let prevBlank = false;
+    if (i === 0) {
+      prevBlank = true;
+    } else {
+      const prevParsed = getBlockquotePrefixAndRest(lines[i - 1]);
+      if (currParsed.bqCount > 0) {
+        prevBlank = prevParsed.bqCount >= currParsed.bqCount && prevParsed.rest.trim() === '';
+      } else {
+        prevBlank = lines[i - 1].trim() === '';
+      }
+    }
+
+    const isIndentedCandidate =
+      prevBlank &&
+      /^(?: {4}|\t)/.test(currParsed.rest) &&
+      (currParsed.bqCount > 0 || mdxContainerDepth === 0);
+
+    if (isIndentedCandidate) {
+      const indentedBlock: string[] = [];
+      const indentedBqCount = currParsed.bqCount;
+
       while (i < lines.length) {
-        if (/^(?: {4}|\t)/.test(lines[i])) {
-          indentedBlock.push(lines[i]);
-          i++;
-        } else if (lines[i].trim() === '') {
-          let nextNonBlank = i + 1;
-          while (nextNonBlank < lines.length && lines[nextNonBlank].trim() === '') {
-            nextNonBlank++;
-          }
-          if (nextNonBlank < lines.length && /^(?: {4}|\t)/.test(lines[nextNonBlank])) {
-            indentedBlock.push(lines[i]);
-            i++;
+        const lineParsed = getBlockquotePrefixAndRest(lines[i]);
+        if (indentedBqCount > 0) {
+          if (lineParsed.bqCount === indentedBqCount) {
+            if (/^(?: {4}|\t)/.test(lineParsed.rest)) {
+              indentedBlock.push(lines[i]);
+              i++;
+            } else if (lineParsed.rest.trim() === '') {
+              let nextNonBlank = i + 1;
+              while (nextNonBlank < lines.length) {
+                const nextParsed = getBlockquotePrefixAndRest(lines[nextNonBlank]);
+                if (nextParsed.bqCount === indentedBqCount && nextParsed.rest.trim() === '') {
+                  nextNonBlank++;
+                } else {
+                  break;
+                }
+              }
+              if (
+                nextNonBlank < lines.length &&
+                getBlockquotePrefixAndRest(lines[nextNonBlank]).bqCount === indentedBqCount &&
+                /^(?: {4}|\t)/.test(getBlockquotePrefixAndRest(lines[nextNonBlank]).rest)
+              ) {
+                indentedBlock.push(lines[i]);
+                i++;
+              } else {
+                break;
+              }
+            } else {
+              break;
+            }
           } else {
             break;
           }
         } else {
-          break;
+          if (lineParsed.bqCount === 0 && /^(?: {4}|\t)/.test(lines[i])) {
+            indentedBlock.push(lines[i]);
+            i++;
+          } else if (lines[i].trim() === '') {
+            let nextNonBlank = i + 1;
+            while (nextNonBlank < lines.length && lines[nextNonBlank].trim() === '') {
+              nextNonBlank++;
+            }
+            if (
+              nextNonBlank < lines.length &&
+              getBlockquotePrefixAndRest(lines[nextNonBlank]).bqCount === 0 &&
+              /^(?: {4}|\t)/.test(lines[nextNonBlank])
+            ) {
+              indentedBlock.push(lines[i]);
+              i++;
+            } else {
+              break;
+            }
+          } else {
+            break;
+          }
         }
       }
+
       const blockText = indentedBlock.join('\n');
       const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
       codeBlocks.push(blockText);
