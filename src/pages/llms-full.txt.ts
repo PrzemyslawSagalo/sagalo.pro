@@ -11,10 +11,18 @@ export interface FullDocEntryLike {
   };
 }
 
-function getAttribute(attrs: string, name: string): string {
-  const match = attrs.match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|\\{([^}]*)\\})`, 'i'));
-  if (!match) return '';
-  return (match[1] ?? match[2] ?? match[3] ?? '').trim();
+function parseAttributes(attrs: string): Map<string, string> {
+  const map = new Map<string, string>();
+  const regex = /([a-zA-Z0-9_-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{([^}]*)\})/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(attrs)) !== null) {
+    const key = match[1].toLowerCase();
+    const val = (match[2] ?? match[3] ?? match[4] ?? '').trim();
+    if (!map.has(key)) {
+      map.set(key, val);
+    }
+  }
+  return map;
 }
 
 export function stripStarlightJsx(content: string): string {
@@ -40,12 +48,13 @@ export function stripStarlightJsx(content: string): string {
     .replace(/^import\s*\{[\s\S]*?\}\s*from\s*['"][^'"]+['"];?\s*$/gm, '');
 
   // 2. Serialize LinkCards into Markdown links with descriptions before stripping wrapper tags.
-  // The tag matcher is quote-aware and delimiter-safe for attributes containing quotes, apostrophes, and >.
+  // The tag matcher and tokenizer prevent quoted attribute values from masking or interfering with real attributes.
   const linkCardRegex = /<LinkCard\b((?:[^>"'{}]|"[^"]*"|'[^']*'|\{[^}]*\})*)\/?>/gi;
   cleaned = cleaned.replace(linkCardRegex, (_, attrs) => {
-    const title = getAttribute(attrs, 'title');
-    const href = getAttribute(attrs, 'href');
-    const desc = getAttribute(attrs, 'description');
+    const attrMap = parseAttributes(attrs);
+    const title = attrMap.get('title') || '';
+    const href = attrMap.get('href') || '';
+    const desc = attrMap.get('description') || '';
 
     if (title && href) {
       return desc ? `- [${title}](${href}): ${desc}` : `- [${title}](${href})`;
@@ -58,7 +67,8 @@ export function stripStarlightJsx(content: string): string {
   // 3. Serialize TabItem labels so tab context is preserved in LLM Markdown
   const tabItemRegex = /<TabItem\b((?:[^>"'{}]|"[^"]*"|'[^']*'|\{[^}]*\})*)>/gi;
   cleaned = cleaned.replace(tabItemRegex, (_, attrs) => {
-    const label = getAttribute(attrs, 'label');
+    const attrMap = parseAttributes(attrs);
+    const label = attrMap.get('label') || '';
     return label ? `\n\n**Tab: ${label}**\n\n` : '\n';
   });
 

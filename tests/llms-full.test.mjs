@@ -67,6 +67,21 @@ Some regular markdown text here.
     outputQuotes.includes("- [Developer's Guide](/guide/): Python > JavaScript comparison"),
     'Must handle apostrophes and > in quoted LinkCard attributes without truncation'
   );
+
+  const inputWithNestedAttrValues = `
+<CardGrid>
+  <LinkCard
+    description="Example: title='Fake Title' href='/fake/'"
+    title="Real Title"
+    href="/real/"
+  />
+</CardGrid>
+`;
+  const outputNested = stripStarlightJsx(inputWithNestedAttrValues);
+  assert.ok(
+    outputNested.includes("- [Real Title](/real/): Example: title='Fake Title' href='/fake/'"),
+    'Must not confuse attribute-like text inside a quoted description with real attributes'
+  );
 });
 
 test('Test 2: stripStarlightJsx strips <Tabs>, </Tabs>, <TabItem>, <Steps>, and <FileTree> tags while preserving tab labels', async () => {
