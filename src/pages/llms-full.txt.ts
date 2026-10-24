@@ -18,8 +18,24 @@ function getAttribute(attrs: string, name: string): string {
 }
 
 export function stripStarlightJsx(content: string): string {
+  const codeBlocks: string[] = [];
+
+  // Protect fenced code blocks (```...``` or ~~~...~~~) and inline code spans (`...`)
+  // so literal code examples are not altered during MDX tag transformations.
+  let protectedContent = content.replace(/(```[\s\S]*?```|~~~[\s\S]*?~~~)/g, (match) => {
+    const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
+    codeBlocks.push(match);
+    return id;
+  });
+
+  protectedContent = protectedContent.replace(/(`+)([\s\S]*?)\1/g, (match) => {
+    const id = `\x00__CODE_BLOCK_${codeBlocks.length}__\x00`;
+    codeBlocks.push(match);
+    return id;
+  });
+
   // 1. Strip MDX import declarations
-  let cleaned = content
+  let cleaned = protectedContent
     .replace(/^import\s+[^;\n]+;\s*$/gm, '')
     .replace(/^import\s*\{[\s\S]*?\}\s*from\s*['"][^'"]+['"];?\s*$/gm, '');
 
@@ -48,10 +64,17 @@ export function stripStarlightJsx(content: string): string {
 
   // 4. Strip remaining Starlight wrapper tags (<CardGrid>, <Tabs>, <Steps>, etc.)
   const wrapperTagsRegex = /<\/?(?:Tabs|TabItem|Steps|FileTree|CardGrid)\b(?:[^>"'{}]|"[^"]*"|'[^']*'|\{[^}]*\})*\/?>/gi;
-  return cleaned
+  cleaned = cleaned
     .replace(wrapperTagsRegex, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+
+  // Restore protected fenced and inline code blocks
+  for (let i = 0; i < codeBlocks.length; i++) {
+    cleaned = cleaned.replace(`\x00__CODE_BLOCK_${i}__\x00`, () => codeBlocks[i]);
+  }
+
+  return cleaned;
 }
 
 export function generateLlmsFullTxt(docs: FullDocEntryLike[]): string {
