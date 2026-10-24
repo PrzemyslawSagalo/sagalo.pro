@@ -52,15 +52,33 @@ Some regular markdown text here.
     'Must serialize LinkCard into Markdown link with description'
   );
   assert.ok(output.includes('Some regular markdown text here.'), 'Must preserve regular text');
+
+  const inputWithQuotes = `
+<CardGrid>
+  <LinkCard
+    title="Developer's Guide"
+    href="/guide/"
+    description="Python > JavaScript comparison"
+  />
+</CardGrid>
+`;
+  const outputQuotes = stripStarlightJsx(inputWithQuotes);
+  assert.ok(
+    outputQuotes.includes("- [Developer's Guide](/guide/): Python > JavaScript comparison"),
+    'Must handle apostrophes and > in quoted LinkCard attributes without truncation'
+  );
 });
 
-test('Test 2: stripStarlightJsx strips <Tabs>, </Tabs>, <TabItem>, <Steps>, and <FileTree> tags', async () => {
+test('Test 2: stripStarlightJsx strips <Tabs>, </Tabs>, <TabItem>, <Steps>, and <FileTree> tags while preserving tab labels', async () => {
   const { stripStarlightJsx } = await import(`file://${llmsFullTsPath}`);
 
   const input = `
 <Tabs>
   <TabItem label="npm">
     npm install foo
+  </TabItem>
+  <TabItem label="pnpm (Fast & Efficient)">
+    pnpm add foo
   </TabItem>
 </Tabs>
 
@@ -83,7 +101,10 @@ test('Test 2: stripStarlightJsx strips <Tabs>, </Tabs>, <TabItem>, <Steps>, and 
   assert.equal(output.includes('</Steps>'), false);
   assert.equal(output.includes('<FileTree>'), false);
   assert.equal(output.includes('</FileTree>'), false);
+  assert.ok(output.includes('**Tab: npm**'), 'Must preserve simple TabItem label as Markdown heading');
+  assert.ok(output.includes('**Tab: pnpm (Fast & Efficient)**'), 'Must preserve TabItem label with parentheses');
   assert.ok(output.includes('npm install foo'), 'Must retain inner tab content');
+  assert.ok(output.includes('pnpm add foo'), 'Must retain second tab content');
   assert.ok(output.includes('Step one'), 'Must retain inner steps content');
 });
 

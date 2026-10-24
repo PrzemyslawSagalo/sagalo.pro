@@ -11,21 +11,25 @@ export interface FullDocEntryLike {
   };
 }
 
+function getAttribute(attrs: string, name: string): string {
+  const match = attrs.match(new RegExp(`\\b${name}=(?:"([^"]*)"|'([^']*)'|\\{([^}]*)\\})`, 'i'));
+  if (!match) return '';
+  return (match[1] ?? match[2] ?? match[3] ?? '').trim();
+}
+
 export function stripStarlightJsx(content: string): string {
   // 1. Strip MDX import declarations
   let cleaned = content
     .replace(/^import\s+[^;\n]+;\s*$/gm, '')
     .replace(/^import\s*\{[\s\S]*?\}\s*from\s*['"][^'"]+['"];?\s*$/gm, '');
 
-  // 2. Serialize LinkCards into Markdown links with descriptions before stripping wrapper tags
-  cleaned = cleaned.replace(/<LinkCard\b([\s\S]*?)\/?>/gi, (_, attrs) => {
-    const titleMatch = attrs.match(/title=["']([^"']+)["']/);
-    const hrefMatch = attrs.match(/href=["']([^"']+)["']/);
-    const descMatch = attrs.match(/description=["']([^"']+)["']/);
-
-    const title = titleMatch ? titleMatch[1] : '';
-    const href = hrefMatch ? hrefMatch[1] : '';
-    const desc = descMatch ? descMatch[1] : '';
+  // 2. Serialize LinkCards into Markdown links with descriptions before stripping wrapper tags.
+  // The tag matcher is quote-aware and delimiter-safe for attributes containing quotes, apostrophes, and >.
+  const linkCardRegex = /<LinkCard\b((?:[^>"'{}]|"[^"]*"|'[^']*'|\{[^}]*\})*)\/?>/gi;
+  cleaned = cleaned.replace(linkCardRegex, (_, attrs) => {
+    const title = getAttribute(attrs, 'title');
+    const href = getAttribute(attrs, 'href');
+    const desc = getAttribute(attrs, 'description');
 
     if (title && href) {
       return desc ? `- [${title}](${href}): ${desc}` : `- [${title}](${href})`;
@@ -35,9 +39,17 @@ export function stripStarlightJsx(content: string): string {
     return '';
   });
 
-  // 3. Strip remaining Starlight wrapper tags (<CardGrid>, <Tabs>, <Steps>, etc.)
+  // 3. Serialize TabItem labels so tab context is preserved in LLM Markdown
+  const tabItemRegex = /<TabItem\b((?:[^>"'{}]|"[^"]*"|'[^']*'|\{[^}]*\})*)>/gi;
+  cleaned = cleaned.replace(tabItemRegex, (_, attrs) => {
+    const label = getAttribute(attrs, 'label');
+    return label ? `\n\n**Tab: ${label}**\n\n` : '\n';
+  });
+
+  // 4. Strip remaining Starlight wrapper tags (<CardGrid>, <Tabs>, <Steps>, etc.)
+  const wrapperTagsRegex = /<\/?(?:Tabs|TabItem|Steps|FileTree|CardGrid)\b(?:[^>"'{}]|"[^"]*"|'[^']*'|\{[^}]*\})*\/?>/gi;
   return cleaned
-    .replace(/<\/?(?:Tabs|TabItem|Steps|FileTree|CardGrid)(?:\s+[\s\S]*?)?\/?>/g, '')
+    .replace(wrapperTagsRegex, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
