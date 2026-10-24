@@ -329,4 +329,16 @@ Closing the outer 4-backtick block:
     outputCodeSpanWithBackticks.includes('`foo``` <CardGrid>keep</CardGrid>`'),
     'Code span containing shorter or longer backtick runs must preserve literal tags'
   );
+
+  const inputMixedBackticks = 'Single backtick containing double: `echo ``hello`` and <CardGrid>keep</CardGrid>` done.';
+  const outputMixedBackticks = stripStarlightJsx(inputMixedBackticks);
+  assert.ok(
+    outputMixedBackticks.includes('`echo ``hello`` and <CardGrid>keep</CardGrid>`'),
+    'Single-backtick code span containing paired double-backtick runs must restore completely without leaking placeholders'
+  );
+  assert.equal(
+    outputMixedBackticks.includes('__CODE_BLOCK_'),
+    false,
+    'No code block placeholders must leak into final output'
+  );
 });

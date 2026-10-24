@@ -201,8 +201,9 @@ export function stripStarlightJsx(content: string): string {
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
-  // Restore protected fenced and inline code blocks
-  for (let i = 0; i < codeBlocks.length; i++) {
+  // Restore protected fenced and inline code blocks in reverse creation order
+  // so any nested placeholders within outer code spans are properly expanded.
+  for (let i = codeBlocks.length - 1; i >= 0; i--) {
     cleaned = cleaned.replace(`\x00__CODE_BLOCK_${i}__\x00`, () => codeBlocks[i]);
   }
 
