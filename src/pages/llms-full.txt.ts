@@ -140,7 +140,7 @@ function protectCode(content: string, codeBlocks: string[]): string {
 
     if (inFence) {
       currentBlock.push(line);
-      const closeMatch = line.match(/^(?:\s*>\s*)*\s{0,3}(`{3,}|~{3,})\s*$/);
+      const closeMatch = line.match(/^(?:\s*>\s*)*\s*(`{3,}|~{3,})\s*$/);
       if (closeMatch && closeMatch[1][0] === fenceChar && closeMatch[1].length >= fenceLength) {
         inFence = false;
         const blockText = currentBlock.join('\n');
@@ -153,8 +153,8 @@ function protectCode(content: string, codeBlocks: string[]): string {
       continue;
     }
 
-    // Check fenced code block opener (including blockquoted fences, e.g. > ~~~mdx or > ```mdx)
-    const fenceMatch = line.match(/^((?:\s*>\s*)*\s{0,3})(`{3,}|~{3,})(.*)$/);
+    // Check fenced code block opener (including blockquoted or indented fences in MDX containers)
+    const fenceMatch = line.match(/^((?:\s*>\s*)*\s*)(`{3,}|~{3,})(.*)$/);
     if (fenceMatch) {
       const char = fenceMatch[2][0];
       const info = fenceMatch[3];

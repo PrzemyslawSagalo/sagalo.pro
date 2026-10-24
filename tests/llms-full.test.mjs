@@ -218,6 +218,39 @@ test('Test 2: stripStarlightJsx strips <Tabs>, </Tabs>, <TabItem>, <Steps>, and 
     outputBracesTab.includes('**Tab: Tab with {id}**'),
     'Must handle closing braces inside TabItem JSX expressions'
   );
+
+  // Regression: MDX container tabs with 4-space indented code fences and blank lines
+  const inputWithIndentedFencesAndBlankLines = `
+<Tabs>
+  <TabItem label="Docker">
+    \`\`\`bash
+    # Inspect system disk usage across images, containers, and build cache
+    docker system df
+
+    # Live resource utilization
+    docker stats
+    \`\`\`
+  </TabItem>
+  <TabItem label="Podman">
+    \`\`\`bash
+    # Inspect system disk usage across images, containers, and build cache
+    podman system df
+
+    # Live resource utilization
+    podman stats
+    \`\`\`
+  </TabItem>
+</Tabs>
+`;
+  const outputIndentedFences = stripStarlightJsx(inputWithIndentedFencesAndBlankLines);
+  assert.ok(outputIndentedFences.includes('**Tab: Docker**'), 'Must preserve Docker TabItem label');
+  assert.ok(outputIndentedFences.includes('**Tab: Podman**'), 'Must preserve Podman TabItem label');
+  assert.equal(outputIndentedFences.includes('<TabItem'), false, 'Must strip all <TabItem> tags');
+  assert.equal(outputIndentedFences.includes('</TabItem>'), false, 'Must strip all </TabItem> tags');
+  assert.equal(outputIndentedFences.includes('<Tabs>'), false, 'Must strip <Tabs> tag');
+  assert.equal(outputIndentedFences.includes('</Tabs>'), false, 'Must strip </Tabs> tag');
+  assert.ok(outputIndentedFences.includes('docker stats'), 'Must preserve code inside first tab');
+  assert.ok(outputIndentedFences.includes('podman stats'), 'Must preserve code inside second tab');
 });
 
 test('Test 3: stripStarlightJsx strips MDX import declarations', async () => {
